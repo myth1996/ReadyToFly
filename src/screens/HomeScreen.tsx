@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { HomeStackParamList } from '../navigation/HomeStack';
 
-type NavProp = NativeStackNavigationProp<HomeStackParamList, 'HomeMain'>;
+type NavProp = NativeStackNavigationProp<HomeStackParamList, 'TripDashboard'>;
 
 export function HomeScreen() {
   const { isPremiumUser } = useAuth();
