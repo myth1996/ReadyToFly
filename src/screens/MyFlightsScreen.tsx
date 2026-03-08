@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
 import { useFlights } from '../context/FlightsContext';
+import { haptic } from '../services/HapticService';
 import {
   FlightData,
   lookupFlight,
@@ -221,6 +222,7 @@ export function MyFlightsScreen() {
 
   const handleSave = () => {
     if (!pendingFlight) { return; }
+    haptic.success();
     savedFades.current.push(new Animated.Value(0));
     savedScales.current.push(new Animated.Value(0.92));
     savedF1s.current.push(new Animated.Value(0));

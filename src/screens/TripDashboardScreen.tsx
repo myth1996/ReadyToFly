@@ -18,6 +18,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useFlights, getCountdown } from '../context/FlightsContext';
 import { formatISOTime, statusLabel, statusColor, FlightData } from '../services/FlightService';
 import { HomeStackParamList } from '../navigation/HomeStack';
+import { haptic } from '../services/HapticService';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'TripDashboard'>;
 
@@ -179,25 +180,26 @@ export function TripDashboardScreen() {
     : c.primary;
 
   const quickTools = [
-    { icon: '🕐', label: t.leaveByTitle, onPress: () => navigation.navigate('LeaveBy') },
-    { icon: '📋', label: t.docCheckTitle, onPress: () => navigation.navigate('DocChecklist') },
-    { icon: '😌', label: t.calmModeTitle, onPress: undefined },
-    { icon: '🔔', label: t.flightAlertsTitle, onPress: undefined },
-    { icon: '🛠️', label: 'All Tools', onPress: () => setShowAllTools(true) },
+    { icon: '🕐', label: t.leaveByTitle,   onPress: () => navigation.navigate('LeaveBy') },
+    { icon: '📋', label: t.docCheckTitle,  onPress: () => navigation.navigate('DocChecklist') },
+    { icon: '😌', label: t.calmModeTitle,  onPress: () => navigation.navigate('CalmMode') },
+    { icon: '🧳', label: 'Baggage',        onPress: () => navigation.navigate('BaggageRules') },
+    { icon: '🛠️', label: 'All Tools',     onPress: () => setShowAllTools(true) },
   ];
 
   const allTools = [
     { icon: '🕐', label: 'Leave-By Time',    desc: 'When to leave for the airport',   locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('LeaveBy'); } },
     { icon: '📋', label: 'Doc Checklist',     desc: 'Passport, boarding pass & more',  locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('DocChecklist'); } },
     { icon: '🗺️', label: 'Airport Guide',     desc: 'Maps, lounges & facilities',     locked: false, onPress: () => { setShowAllTools(false); navigation.getParent()?.navigate('Airport Guide'); } },
-    { icon: '😌', label: 'Calm Mode',         desc: 'Relaxing sounds for anxious flyers', locked: true, onPress: undefined },
-    { icon: '🔔', label: 'Flight Alerts',     desc: 'Delay & gate-change notifications', locked: true, onPress: undefined },
-    { icon: '🍽️', label: 'Food & Lounge',    desc: 'Restaurants near your gate',       locked: true, onPress: undefined },
-    { icon: '💱', label: 'Currency',          desc: 'Live exchange rates at the airport', locked: true, onPress: undefined },
-    { icon: '🧳', label: 'Baggage Rules',     desc: 'Allowances by airline',            locked: true, onPress: undefined },
+    { icon: '😌', label: 'Calm Mode',         desc: '4-7-8 breathing for anxious flyers', locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('CalmMode'); } },
+    { icon: '🧳', label: 'Baggage Rules',     desc: 'Allowances by airline',              locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('BaggageRules'); } },
+    { icon: '🔔', label: 'Flight Alerts',     desc: 'Delay & gate-change notifications',  locked: true,  onPress: undefined },
+    { icon: '🍽️', label: 'Food & Lounge',    desc: 'Restaurants near your gate',          locked: true,  onPress: undefined },
+    { icon: '💱', label: 'Currency',          desc: 'Live exchange rates at the airport',  locked: true,  onPress: undefined },
   ];
 
   const handleLostAtAirport = () => {
+    haptic.heavy();
     Alert.alert(
       '🆘 Lost at Airport?',
       "Don't worry — here's what to do:\n\n1. Go to the nearest Information Desk\n2. Ask for your Terminal & Gate number\n3. Look for airline staff in uniform\n4. Call your airline helpline\n\nStay calm — airport staff are always there to help.",
@@ -380,7 +382,7 @@ export function TripDashboardScreen() {
             key={tool.label}
             style={[styles.toolPill, { backgroundColor: c.card }]}
             onPress={tool.onPress}
-            activeOpacity={tool.onPress ? 0.7 : 1}>
+            activeOpacity={0.7}>
             <Text style={styles.toolIcon}>{tool.icon}</Text>
             <Text style={[styles.toolLabel, { color: c.text }]}>{tool.label}</Text>
           </TouchableOpacity>

@@ -19,12 +19,19 @@ import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { TermsOfServiceScreen } from '../screens/TermsOfServiceScreen';
 import { useSettings } from '../context/SettingsContext';
 import { lightColors } from '../theme';
+import { haptic } from '../services/HapticService';
+import { CalmModeScreen } from '../screens/CalmModeScreen';
+import { BaggageRulesScreen } from '../screens/BaggageRulesScreen';
+import { PremiumScreen } from '../screens/PremiumScreen';
 
 export type HomeStackParamList = {
   TripDashboard: undefined;
   AddFlight: undefined;
   LeaveBy: undefined;
   DocChecklist: undefined;
+  CalmMode: undefined;
+  BaggageRules: undefined;
+  Premium: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
 };
@@ -39,7 +46,7 @@ function HamburgerButton() {
 
   const open  = () => setVisible(true);
   const close = () => setVisible(false);
-  const goTo  = (screen: 'PrivacyPolicy' | 'TermsOfService') => {
+  const goTo  = (screen: 'PrivacyPolicy' | 'TermsOfService' | 'Premium') => {
     close();
     setTimeout(() => navigation.navigate(screen), 150);
   };
@@ -67,7 +74,7 @@ function HamburgerButton() {
           <View style={[styles.row, { borderBottomColor: c.border }]}>
             <Text style={styles.rowIcon}>🌙</Text>
             <Text style={[styles.rowLabel, { color: c.text }]}>{t.darkMode}</Text>
-            <Switch value={isDarkMode} onValueChange={toggleDarkMode} trackColor={{ false: '#D1D5DB', true: c.primary }} thumbColor={lightColors.white} />
+            <Switch value={isDarkMode} onValueChange={() => { haptic.selection(); toggleDarkMode(); }} trackColor={{ false: '#D1D5DB', true: c.primary }} thumbColor={lightColors.white} />
           </View>
 
           <View style={[styles.langSection, { borderBottomColor: c.border }]}>
@@ -89,6 +96,12 @@ function HamburgerButton() {
               ))}
             </View>
           </View>
+
+          <TouchableOpacity style={[styles.row, { borderBottomColor: c.border, backgroundColor: c.primary + '10' }]} onPress={() => { haptic.impact(); goTo('Premium'); }}>
+            <Text style={styles.rowIcon}>👑</Text>
+            <Text style={[styles.rowLabel, { color: c.primary, fontWeight: '800' }]}>{t.upgradePremium}</Text>
+            <Text style={[styles.rowChevron, { color: c.primary }]}>›</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={[styles.row, { borderBottomColor: c.border }]} onPress={() => goTo('PrivacyPolicy')}>
             <Text style={styles.rowIcon}>🔒</Text>
@@ -143,6 +156,21 @@ export function HomeStack() {
         name="DocChecklist"
         component={DocChecklistScreen}
         options={{ headerTitle: '📋 Document Checklist' }}
+      />
+      <Stack.Screen
+        name="CalmMode"
+        component={CalmModeScreen}
+        options={{ headerTitle: '😌 Calm Mode', headerShown: false }}
+      />
+      <Stack.Screen
+        name="BaggageRules"
+        component={BaggageRulesScreen}
+        options={{ headerTitle: '🧳 Baggage Rules' }}
+      />
+      <Stack.Screen
+        name="Premium"
+        component={PremiumScreen}
+        options={{ headerTitle: '👑 FlyEasy Premium' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"

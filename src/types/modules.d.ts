@@ -2,6 +2,45 @@
  * Type stubs for native modules installed on device but not in dev node_modules
  */
 
+declare module 'react-native-razorpay' {
+  interface RazorpayOptions {
+    key: string;
+    amount: number;
+    currency?: string;
+    name?: string;
+    description?: string;
+    image?: string;
+    prefill?: { contact?: string; email?: string; name?: string };
+    theme?: { color?: string };
+    [key: string]: any;
+  }
+  interface RazorpaySuccessResponse {
+    razorpay_payment_id: string;
+    razorpay_order_id?: string;
+    razorpay_signature?: string;
+  }
+  interface RazorpayModule {
+    open(options: RazorpayOptions): Promise<RazorpaySuccessResponse>;
+  }
+  const RazorpayCheckout: RazorpayModule;
+  export default RazorpayCheckout;
+}
+
+declare module 'react-native-haptic-feedback' {
+  type HapticFeedbackType =
+    | 'selection' | 'impactLight' | 'impactMedium' | 'impactHeavy'
+    | 'notificationSuccess' | 'notificationWarning' | 'notificationError';
+  interface HapticOptions {
+    enableVibrateFallback?: boolean;
+    ignoreAndroidSystemSettings?: boolean;
+  }
+  interface HapticFeedbackModule {
+    trigger(type: HapticFeedbackType, options?: HapticOptions): void;
+  }
+  const HapticFeedback: HapticFeedbackModule;
+  export default HapticFeedback;
+}
+
 declare module '@react-native-async-storage/async-storage' {
   interface AsyncStorageStatic {
     getItem(key: string): Promise<string | null>;
