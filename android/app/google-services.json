@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "156341152291",
+    "project_id": "flyeasy-fed7b",
+    "storage_bucket": "flyeasy-fed7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:156341152291:android:ff1ecaea1828dade7e1f96",
+        "android_client_info": {
+          "package_name": "com.flyeasy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-RkQRw_OTfFCACr1zWCIzwBDdqOs5hPA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

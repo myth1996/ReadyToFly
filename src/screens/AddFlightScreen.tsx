@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme';
@@ -133,6 +134,28 @@ const rc = StyleSheet.create({
   airportName: { fontSize: 11, color: colors.textSecondary, flex: 1 },
 });
 
+// ─── PNR Status Deep-Links ────────────────────────────────────────────────────
+
+const PNR_URLS: Record<string, string> = {
+  '6E': 'https://www.goindigo.in/manage-booking.html',
+  'AI': 'https://www.airindia.com/manage-booking',
+  'SG': 'https://www.spicejet.com/manageBooking',
+  'UK': 'https://www.airvistara.com/in/en/manage',          // Vistara → Air India
+  'QP': 'https://www.akasaair.com/manage-booking',
+  'EK': 'https://www.emirates.com/english/manage-booking/',
+  'QR': 'https://www.qatarairways.com/en/manage/bookings',
+  'SQ': 'https://www.singaporeair.com/en_UK/plan-travel/manage-booking/',
+  'EY': 'https://www.etihad.com/en/manage',
+  'LH': 'https://www.lufthansa.com/de/en/manage-booking',
+  'BA': 'https://www.britishairways.com/en-gb/manage-bookings',
+  'AF': 'https://wwws.airfrance.fr/en/manage-my-booking',
+};
+
+function getPnrUrl(flightNum: string): string {
+  const prefix = flightNum.trim().toUpperCase().slice(0, 2);
+  return PNR_URLS[prefix] ?? `https://www.google.com/search?q=${encodeURIComponent(flightNum + ' PNR status check')}`;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function AddFlightScreen() {
@@ -239,6 +262,16 @@ export function AddFlightScreen() {
               maxLength={10}
             />
 
+            {/* Check PNR Online button (shows when PNR + flight number are both filled) */}
+            {pnr.trim().length >= 5 && flightNum.trim().length >= 3 && (
+              <TouchableOpacity
+                style={styles.pnrBtn}
+                onPress={() => Linking.openURL(getPnrUrl(flightNum))}
+                activeOpacity={0.75}>
+                <Text style={styles.pnrBtnTxt}>🔗  Check PNR Status Online</Text>
+              </TouchableOpacity>
+            )}
+
             <Text style={styles.label}>
               Flight Number <Text style={styles.req}>*</Text>
             </Text>
@@ -344,6 +377,8 @@ const styles = StyleSheet.create({
   lookupBtn: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16, elevation: 2 },
   lookupBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
   hint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
+  pnrBtn: { borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: 'center', marginBottom: 16 },
+  pnrBtnTxt: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   loadingWrap: { alignItems: 'center' },
   loadingTxt: { fontSize: 14, color: colors.textSecondary, marginBottom: 4 },
   foundTxt: { fontSize: 15, fontWeight: '700', color: colors.success, marginBottom: 12 },

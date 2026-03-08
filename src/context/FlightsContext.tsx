@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlightData } from '../services/FlightService';
 import { FEATURES } from '../config/env';
 import { notificationService } from '../services/NotificationService';
+import { updateWidget, clearWidget } from '../services/WidgetService';
 
 const STORAGE_KEY = 'flyeasy_flights';
 
@@ -159,6 +160,23 @@ export function FlightsProvider({ children }: { children: React.ReactNode }) {
   }, [flights, lastRefreshAt]);
 
   const nextFlight = getNextFlight(flights);
+
+  // ── Homescreen widget sync ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!nextFlight) {
+      clearWidget();
+      return;
+    }
+    const countdown = getCountdown(nextFlight.dep.scheduledTime);
+    updateWidget({
+      flightIata: nextFlight.flightIata,
+      depIata:    nextFlight.dep.iata,
+      arrIata:    nextFlight.arr.iata,
+      departureTime: nextFlight.dep.scheduledTime,
+      countdown:  countdown.text,
+      status:     nextFlight.status ?? 'scheduled',
+    });
+  }, [nextFlight?.flightIata, nextFlight?.dep?.scheduledTime, nextFlight?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <FlightsContext.Provider

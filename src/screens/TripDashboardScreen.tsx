@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  Share,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +21,8 @@ import { useFlights, getCountdown } from '../context/FlightsContext';
 import { formatISOTime, statusLabel, statusColor, FlightData } from '../services/FlightService';
 import { HomeStackParamList } from '../navigation/HomeStack';
 import { haptic } from '../services/HapticService';
+import { fetchWeatherForAirport, WeatherResult } from '../services/WeatherService';
+import { AIRPORTS } from '../data/airports';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'TripDashboard'>;
 
@@ -179,6 +183,46 @@ export function TripDashboardScreen() {
     ? countdownBgColor(nextFlight.dep.scheduledTime, c.primary)
     : c.primary;
 
+  // ── Weather for arrival airport ────────────────────────────────────────────
+  const [weather, setWeather] = useState<WeatherResult | null>(null);
+  useEffect(() => {
+    if (!nextFlight?.arr?.iata) { setWeather(null); return; }
+    const arrEntry = AIRPORTS[nextFlight.arr.iata];
+    if (!arrEntry) { return; }
+    fetchWeatherForAirport(nextFlight.arr.iata, arrEntry.city)
+      .then(w => setWeather(w))
+      .catch(() => setWeather(null));
+  }, [nextFlight?.arr?.iata]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Share trip ─────────────────────────────────────────────────────────────
+  const handleShareTrip = useCallback(() => {
+    if (!nextFlight) { return; }
+    const depTime = formatISOTime(nextFlight.dep.scheduledTime);
+    const arrTime = formatISOTime(nextFlight.arr.scheduledTime);
+    const depDate = nextFlight.dep.scheduledTime
+      ? new Date(nextFlight.dep.scheduledTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    const lines = [
+      `✈️ *${nextFlight.flightIata}* — ${depDate}`,
+      `${nextFlight.dep.iata} (${depTime}) → ${nextFlight.arr.iata} (${arrTime})`,
+      nextFlight.airline,
+      nextFlight.pnr ? `PNR: ${nextFlight.pnr}` : '',
+      nextFlight.dep.terminal ? `Terminal ${nextFlight.dep.terminal}` : '',
+      nextFlight.arr.gate ? `Gate ${nextFlight.arr.gate}` : '',
+      '',
+      '_Shared via FlyEasy_',
+    ].filter(Boolean).join('\n');
+    Share.share({ message: lines, title: `Flight ${nextFlight.flightIata}` });
+  }, [nextFlight]);
+
+  // ── DigiYatra deep-link ─────────────────────────────────────────────────────
+  const handleDigiYatra = () => {
+    const pkg = 'in.co.aai.digiyatra';
+    Linking.openURL(`intent://#Intent;package=${pkg};end`).catch(() =>
+      Linking.openURL('https://play.google.com/store/apps/details?id=in.co.aai.digiyatra'),
+    );
+  };
+
   const quickTools = [
     { icon: '🕐', label: t.leaveByTitle,   onPress: () => navigation.navigate('LeaveBy') },
     { icon: '📋', label: t.docCheckTitle,  onPress: () => navigation.navigate('DocChecklist') },
@@ -193,6 +237,8 @@ export function TripDashboardScreen() {
     { icon: '🗺️', label: 'Airport Guide',     desc: 'Maps, lounges & facilities',     locked: false, onPress: () => { setShowAllTools(false); navigation.getParent()?.navigate('Airport Guide'); } },
     { icon: '😌', label: 'Calm Mode',         desc: '4-7-8 breathing for anxious flyers', locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('CalmMode'); } },
     { icon: '🧳', label: 'Baggage Rules',     desc: 'Allowances by airline',              locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('BaggageRules'); } },
+    { icon: '🌍', label: 'Visa Info',         desc: 'Entry requirements by country',       locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('Visa'); } },
+    { icon: '🏅', label: 'Frequent Flyer',   desc: 'Track your loyalty programmes',        locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('FrequentFlyer'); } },
     { icon: '🔔', label: 'Flight Alerts',     desc: 'Delay & gate-change notifications',  locked: true,  onPress: undefined },
     { icon: '🍽️', label: 'Food & Lounge',    desc: 'Restaurants near your gate',          locked: true,  onPress: undefined },
     { icon: '💱', label: 'Currency',          desc: 'Live exchange rates at the airport',  locked: true,  onPress: undefined },
@@ -367,6 +413,54 @@ export function TripDashboardScreen() {
                 </Text>
               </View>
             ) : null}
+          </View>
+
+          {/* Share + DigiYatra action row */}
+          <View style={[styles.statusDivider, { backgroundColor: c.border, marginTop: 14 }]} />
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: c.primary + '15' }]}
+              onPress={handleShareTrip}
+              activeOpacity={0.75}>
+              <Text style={styles.actionBtnIcon}>📤</Text>
+              <Text style={[styles.actionBtnLabel, { color: c.primary }]}>Share Trip</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: '#10B981' + '15' }]}
+              onPress={handleDigiYatra}
+              activeOpacity={0.75}>
+              <Text style={styles.actionBtnIcon}>🪪</Text>
+              <Text style={[styles.actionBtnLabel, { color: '#10B981' }]}>DigiYatra</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── WEATHER AT DESTINATION ───────────────────────────────────── */}
+      {nextFlight && weather && (
+        <View style={[styles.weatherCard, { backgroundColor: c.card }]}>
+          <View style={styles.weatherHeader}>
+            <Text style={[styles.weatherTitle, { color: c.text }]}>
+              {weather.emoji}  Weather at {nextFlight.arr.iata}
+            </Text>
+            <Text style={[styles.weatherTemp, { color: c.primary }]}>
+              {weather.tempC}°C
+            </Text>
+          </View>
+          <Text style={[styles.weatherDesc, { color: c.textSecondary }]}>
+            {weather.description}  ·  Feels like {weather.feelsLikeC}°C
+          </Text>
+          <View style={styles.weatherChips}>
+            <View style={[styles.chip, { backgroundColor: c.background }]}>
+              <Text style={[styles.chipLabel, { color: c.text }]}>
+                💧 {weather.humidity}% humidity
+              </Text>
+            </View>
+            <View style={[styles.chip, { backgroundColor: c.background }]}>
+              <Text style={[styles.chipLabel, { color: c.text }]}>
+                💨 {weather.windKph} km/h
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -617,6 +711,38 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   chipLabel: { fontSize: 12, fontWeight: '700' },
+
+  // Share + DigiYatra action row (inside status card)
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+    paddingVertical: 11,
+  },
+  actionBtnIcon: { fontSize: 16 },
+  actionBtnLabel: { fontSize: 13, fontWeight: '700' },
+
+  // Weather card
+  weatherCard: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+  },
+  weatherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  weatherTitle: { fontSize: 14, fontWeight: '700' },
+  weatherTemp: { fontSize: 22, fontWeight: '800' },
+  weatherDesc: { fontSize: 12, marginBottom: 10 },
+  weatherChips: { flexDirection: 'row', gap: 8 },
 
   // Section titles
   sectionTitle: { fontSize: 17, fontWeight: '800', paddingHorizontal: 20, marginBottom: 14 },

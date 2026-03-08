@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Metro Bundler",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 8081
+    },
+    {
+      "name": "Android",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "android"],
+      "port": 8081
+    }
+  ]
+}

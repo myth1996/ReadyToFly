@@ -1,0 +1,168 @@
+# JanSeva — Indian Government Welfare Schemes Platform
+
+A **free, ad-supported web application** that helps Indian citizens discover, understand, and apply for Central & State government welfare schemes. An AI engine recommends the best-fit schemes based on the user's profile.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **App Name**: I'm proposing **"JanSeva"** (जनसेवा — Service to People). Would you prefer a different name?
+
+> [!IMPORTANT]
+> **Tech Stack Decision**: For the MVP, I'm proposing a **single-page web app using Vite + vanilla JS** (no heavy framework). This keeps it lightweight, fast, and easy to deploy. If you want a full-stack app with backend/database right away, we'd need to discuss hosting. Please confirm.
+
+> [!WARNING]
+> **Scheme Data**: Real government scheme data would need to be sourced from official APIs or manually curated. For the MVP, I'll create a **realistic sample database** of ~20-30 popular schemes (PM-KISAN, Ayushman Bharat, MGNREGA, etc.) with accurate eligibility criteria. You can expand this later.
+
+> [!IMPORTANT]
+> **AI Feature**: For the AI scheme matcher, I'll implement a **rule-based matching engine** (no API costs) that scores schemes based on user profile fields (age, income, category, state, occupation). A future upgrade could integrate an actual LLM. Does this approach work for you?
+
+---
+
+## Core Features (MVP)
+
+| Feature | Description |
+|---------|-------------|
+| 🏠 **Landing Page** | Hero section, feature highlights, testimonials, CTA |
+| 👤 **User Profile** | Age, gender, income, state, category (SC/ST/OBC/General), occupation, family size |
+| 📋 **Scheme Browser** | Browse all schemes with filters (Central/State, category, sector) |
+| 🔍 **Search** | Full-text search across scheme names and descriptions |
+| 🤖 **AI Matcher** | Rule-based engine that recommends top schemes for the user's profile |
+| 📄 **Scheme Detail** | Eligibility, benefits, required documents, how to apply (online + offline) |
+| 📝 **Apply Help** | Direct links to official portals + downloadable document checklists |
+| 📢 **Ad Integration** | Google AdSense banner & interstitial ad placeholders |
+| 🌐 **Multi-language** | English + Hindi toggle (MVP) |
+
+---
+
+## Proposed Changes
+
+### Project Structure
+
+```
+crimson-skylab/
+├── index.html              # Entry point
+├── css/
+│   ├── variables.css       # Design tokens, colors, fonts
+│   ├── base.css            # Reset, typography, global styles
+│   ├── components.css      # Card, button, form, nav styles
+│   └── pages.css           # Page-specific layouts
+├── js/
+│   ├── app.js              # Main app controller, routing
+│   ├── data/
+│   │   └── schemes.js      # Scheme database (JSON array)
+│   ├── components/
+│   │   ├── navbar.js       # Navigation bar
+│   │   ├── hero.js         # Landing hero section
+│   │   ├── schemeCard.js   # Scheme card component
+│   │   ├── profileForm.js  # User profile form
+│   │   ├── aiMatcher.js    # AI recommendation engine
+│   │   └── schemeDetail.js # Scheme detail view
+│   ├── utils/
+│   │   ├── router.js       # Simple hash-based router
+│   │   ├── storage.js      # LocalStorage helper
+│   │   └── search.js       # Search/filter utilities
+│   └── ads.js              # Ad placement manager
+├── assets/
+│   ├── icons/              # SVG icons
+│   └── images/             # Generated images
+└── manifest.json           # PWA manifest (future)
+```
+
+---
+
+### Design System
+
+#### [NEW] [variables.css](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/css/variables.css)
+- **Color palette**: Saffron-inspired warm gradient (#FF6B35 → #FF9F1C) with deep navy (#1A1A2E) dark mode
+- **Glassmorphism**: Frosted glass cards with `backdrop-filter: blur()`
+- **Typography**: Google Fonts — **Outfit** (headings) + **Inter** (body)
+- **Spacing, border-radius, shadows**: Consistent design tokens
+
+#### [NEW] [base.css](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/css/base.css)
+- CSS reset, smooth scrolling, dark theme base
+- Responsive grid system, container widths
+
+#### [NEW] [components.css](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/css/components.css)
+- `.scheme-card` — Glassmorphism card with hover lift animation
+- `.btn-primary`, `.btn-secondary` — Gradient buttons with micro-animations
+- `.profile-form` — Modern form with floating labels
+- `.nav` — Sticky navbar with blur backdrop
+- `.badge` — Category/eligibility tags
+- `.search-bar` — Animated expanding search
+
+---
+
+### Core Components
+
+#### [NEW] [schemes.js](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/js/data/schemes.js)
+- Database of ~25 popular government schemes with fields:
+  - `name`, `nameHi` (Hindi), `ministry`, `type` (central/state), `state`
+  - `eligibility` (age range, income cap, categories, gender, occupation)
+  - `benefits`, `documents`, `applyUrl`, `description`
+
+#### [NEW] [aiMatcher.js](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/js/components/aiMatcher.js)
+- Takes user profile → scores each scheme on eligibility match %
+- Ranks and returns top recommendations with match reasons
+- Animated "AI analyzing..." loading state
+
+#### [NEW] [app.js](file:///c:/Users/subha/.gemini/antigravity/playground/crimson-skylab/js/app.js)
+- Hash-based SPA routing (`#/`, `#/schemes`, `#/profile`, `#/recommend`, `#/scheme/:id`)
+- Page transitions with fade animations
+- LocalStorage for user profile persistence
+
+---
+
+### Pages
+
+| Route | Page | Key Elements |
+|-------|------|-------------|
+| `#/` | Landing | Animated hero, feature cards, "Get Started" CTA, stats counter |
+| `#/profile` | Profile Setup | Multi-step form: personal → location → economic → submit |
+| `#/schemes` | Browse Schemes | Filter sidebar + scheme cards grid + search bar |
+| `#/scheme/:id` | Scheme Detail | Full info, eligibility checker, documents list, apply button |
+| `#/recommend` | AI Recommendations | Profile summary → AI animation → ranked scheme cards with match % |
+
+---
+
+## Design Aesthetic
+
+- **Theme**: Deep navy dark mode with saffron/amber accent gradients (inspired by Indian tricolor)
+- **Cards**: Glassmorphism with subtle border glow on hover
+- **Animations**: Smooth page transitions, counter animations, card entrance animations
+- **Mobile-first**: Bottom navigation bar on mobile, sidebar on desktop
+- **Illustrations**: AI-generated hero illustrations showing diverse Indian citizens
+
+---
+
+## Verification Plan
+
+### Browser Testing
+1. Open the app in browser and verify:
+   - Landing page renders with all sections, animations play
+   - Navigation between all routes works smoothly
+   - Profile form saves data to LocalStorage
+   - Scheme browser shows all schemes, filters work
+   - AI recommendation returns relevant schemes based on profile
+   - Scheme detail page shows complete information
+   - Responsive design works at mobile (375px), tablet (768px), desktop (1200px)
+   - Hindi/English toggle switches all visible text
+
+### Manual Verification
+- User should test the app in their browser and confirm:
+  - Visual design meets expectations
+  - Scheme data accuracy for sample schemes
+  - AI recommendations feel logical for test profiles
+
+---
+
+## Monetization (Ad Placement)
+
+| Placement | Type | Location |
+|-----------|------|----------|
+| Landing page | Banner | Below hero section |
+| Scheme list | Native ad | Every 6th card position |
+| Scheme detail | Banner | Between description and documents |
+| Recommendations | Interstitial | Before showing results (skippable) |
+
+> [!NOTE]
+> Ad placeholders will be styled containers for now. Real AdSense integration requires a Google AdSense account and approved domain.

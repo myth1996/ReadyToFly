@@ -15,6 +15,7 @@ import { useFlights } from '../context/FlightsContext';
 import { formatISOTime } from '../services/FlightService';
 import { notificationService } from '../services/NotificationService';
 import { airportMapsQuery } from '../data/airports';
+import { AirportSearchInput } from '../components/AirportSearchInput';
 
 // Buffer times in minutes
 const DOMESTIC_CHECKIN = 60;
@@ -260,6 +261,21 @@ export function LeaveByScreen() {
         </View>
       </View>
 
+      {/* Departure airport */}
+      <View style={[styles.card, { backgroundColor: c.card }]}>
+        <AirportSearchInput
+          label="Departure Airport"
+          value={depAirportIata}
+          onSelect={setDepAirportIata}
+          placeholder="IATA or city — e.g. DEL or Delhi"
+        />
+        <TouchableOpacity onPress={openGoogleMaps} activeOpacity={0.7}>
+          <Text style={[styles.hint, { color: c.primary }]}>
+            📍 Open Google Maps for directions{depAirportIata ? ` to ${depAirportIata}` : ''}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Travel time */}
       <View style={[styles.card, { backgroundColor: c.card }]}>
         <Text style={[styles.label, { color: c.text }]}>Travel Time to Airport (minutes)</Text>
@@ -271,11 +287,6 @@ export function LeaveByScreen() {
           onChangeText={setTravelMins}
           keyboardType="number-pad"
         />
-        <TouchableOpacity onPress={openGoogleMaps} activeOpacity={0.7}>
-          <Text style={[styles.hint, { color: c.primary }]}>
-            📍 Open Google Maps for directions{depAirportIata ? ` to ${depAirportIata}` : ''}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {/* Toggles */}

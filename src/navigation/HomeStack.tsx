@@ -23,6 +23,8 @@ import { haptic } from '../services/HapticService';
 import { CalmModeScreen } from '../screens/CalmModeScreen';
 import { BaggageRulesScreen } from '../screens/BaggageRulesScreen';
 import { PremiumScreen } from '../screens/PremiumScreen';
+import { FrequentFlyerScreen } from '../screens/FrequentFlyerScreen';
+import { VisaScreen } from '../screens/VisaScreen';
 
 export type HomeStackParamList = {
   TripDashboard: undefined;
@@ -32,6 +34,8 @@ export type HomeStackParamList = {
   CalmMode: undefined;
   BaggageRules: undefined;
   Premium: undefined;
+  FrequentFlyer: undefined;
+  Visa: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
 };
@@ -83,15 +87,23 @@ function HamburgerButton() {
               <Text style={[styles.rowLabel, { color: c.text }]}>{t.language}</Text>
             </View>
             <View style={styles.langOptions}>
-              {(['en', 'hi'] as const).map(lang => (
+              {([
+                { code: 'en', flag: '🇬🇧', name: 'English' },
+                { code: 'hi', flag: '🇮🇳', name: 'हिन्दी' },
+                { code: 'ta', flag: '🇮🇳', name: 'தமிழ்' },
+                { code: 'te', flag: '🇮🇳', name: 'తెలుగు' },
+                { code: 'kn', flag: '🇮🇳', name: 'ಕನ್ನಡ' },
+                { code: 'bn', flag: '🇮🇳', name: 'বাংলা' },
+                { code: 'mr', flag: '🇮🇳', name: 'मराठी' },
+              ] as const).map(({ code, flag, name }) => (
                 <TouchableOpacity
-                  key={lang}
-                  style={[styles.langOption, { borderColor: c.border, backgroundColor: c.background }, language === lang && { borderColor: c.primary, backgroundColor: c.primary + '18' }]}
-                  onPress={() => setLanguage(lang)}>
-                  <Text style={[styles.langOptionText, { color: c.text }, language === lang && { color: c.primary, fontWeight: '700' }]}>
-                    {lang === 'en' ? `🇬🇧 ${t.english}` : `🇮🇳 ${t.hindi}`}
+                  key={code}
+                  style={[styles.langOption, { borderColor: c.border, backgroundColor: c.background }, language === code && { borderColor: c.primary, backgroundColor: c.primary + '18' }]}
+                  onPress={() => setLanguage(code)}>
+                  <Text style={[styles.langOptionText, { color: c.text }, language === code && { color: c.primary, fontWeight: '700' }]}>
+                    {flag}  {name}
                   </Text>
-                  {language === lang && <Text style={{ color: c.primary, fontSize: 14 }}>✓</Text>}
+                  {language === code && <Text style={{ color: c.primary, fontSize: 14 }}>✓</Text>}
                 </TouchableOpacity>
               ))}
             </View>
@@ -171,6 +183,16 @@ export function HomeStack() {
         name="Premium"
         component={PremiumScreen}
         options={{ headerTitle: '👑 FlyEasy Premium' }}
+      />
+      <Stack.Screen
+        name="FrequentFlyer"
+        component={FrequentFlyerScreen}
+        options={{ headerTitle: '🏅 Frequent Flyer' }}
+      />
+      <Stack.Screen
+        name="Visa"
+        component={VisaScreen}
+        options={{ headerTitle: '🌍 Visa Requirements' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"
