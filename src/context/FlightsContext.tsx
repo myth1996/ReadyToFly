@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlightData } from '../services/FlightService';
 import { FEATURES } from '../config/env';
+import { notificationService } from '../services/NotificationService';
 
 const STORAGE_KEY = 'flyeasy_flights';
 
@@ -102,10 +103,27 @@ export function FlightsProvider({ children }: { children: React.ReactNode }) {
 
   const addFlight = useCallback((flight: FlightData) => {
     setFlights(prev => [...prev, flight]);
+    // Schedule departure reminders (2h + 30min before)
+    if (flight.dep.scheduledTime) {
+      notificationService.scheduleDepartureReminders({
+        flightIata: flight.flightIata,
+        departureTime: flight.dep.scheduledTime,
+        depIata: flight.dep.iata,
+        terminal: flight.dep.terminal,
+        gate: flight.arr.gate,
+      }).catch(() => {});
+    }
   }, []);
 
   const removeFlight = useCallback((index: number) => {
-    setFlights(prev => prev.filter((_, i) => i !== index));
+    setFlights(prev => {
+      const removed = prev[index];
+      if (removed) {
+        // Cancel any scheduled notifications for this flight
+        notificationService.cancelFlightNotifications(removed.flightIata).catch(() => {});
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }, []);
 
   const updateFlight = useCallback((index: number, updated: FlightData) => {

@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -128,7 +129,7 @@ const mStyles = StyleSheet.create({
 export function TripDashboardScreen() {
   const { user } = useAuth();
   const { themeColors: c, t } = useSettings();
-  const { flights, nextFlight, removeFlight } = useFlights();
+  const { flights, nextFlight, removeFlight, refreshAllFlights, isRefreshing } = useFlights();
   const navigation = useNavigation<NavProp>();
 
   // All-tools modal
@@ -208,7 +209,15 @@ export function TripDashboardScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: c.background }]}
       contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={refreshAllFlights}
+          tintColor={c.primary}
+          colors={[c.primary]}
+        />
+      }>
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <View style={styles.header}>

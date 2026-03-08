@@ -5,17 +5,25 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
-import { FlightsProvider } from './src/context/FlightsContext';
+import { FlightsProvider, useFlights } from './src/context/FlightsContext';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { lightColors } from './src/theme';
+import { notificationService } from './src/services/NotificationService';
+import { smsImportService } from './src/services/SmsImportService';
 
 const GMAIL_ASKED_KEY = 'flyeasy_gmail_asked';
 
 function AppContent() {
   const { user, loading } = useAuth();
   const { themeColors: c } = useSettings();
+  const { addFlight } = useFlights();
   const prevUidRef = useRef<string | null>(null);
+
+  // Set up notification channels once on app start
+  useEffect(() => {
+    notificationService.setup().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -25,14 +33,14 @@ function AppContent() {
     if (prevUidRef.current === user.uid) { return; }
     prevUidRef.current = user.uid;
 
-    // Show Gmail permission prompt only ONCE ever (persisted across app restarts)
-    const checkGmailPrompt = async () => {
+    // Show SMS import prompt only ONCE ever (persisted across app restarts)
+    const checkSmsPrompt = async () => {
       try {
         const asked = await AsyncStorage.getItem(GMAIL_ASKED_KEY);
         if (asked) { return; }
         await AsyncStorage.setItem(GMAIL_ASKED_KEY, 'true');
       } catch (_) {
-        return; // don't show if storage fails
+        return;
       }
 
       // Slight delay so the dashboard renders before the dialog
@@ -44,9 +52,26 @@ function AppContent() {
             { text: 'Not Now', style: 'cancel' },
             {
               text: 'Allow',
-              onPress: () => {
-                // TODO: trigger SMS permission request
-                Alert.alert('Coming Soon', 'SMS auto-import will be available in the next update!');
+              onPress: async () => {
+                try {
+                  const bookings = await smsImportService.importBookingsFromSms();
+                  if (bookings.length === 0) {
+                    Alert.alert('No bookings found', 'We couldn\'t find any flight booking SMS in your inbox. You can add flights manually.');
+                    return;
+                  }
+                  // Show found bookings summary
+                  const summary = bookings
+                    .slice(0, 3)
+                    .map(b => `• ${b.flightNumber} — PNR ${b.pnr}${b.date ? ` (${b.date})` : ''}`)
+                    .join('\n');
+                  Alert.alert(
+                    `Found ${bookings.length} booking${bookings.length > 1 ? 's' : ''}`,
+                    `${summary}${bookings.length > 3 ? `\n...and ${bookings.length - 3} more` : ''}\n\nGo to My Flights → Add Flight to track them.`,
+                    [{ text: 'OK' }],
+                  );
+                } catch (_) {
+                  Alert.alert('Import Failed', 'Could not read SMS. You can add flights manually.');
+                }
               },
             },
           ],
@@ -54,8 +79,8 @@ function AppContent() {
       }, 1200);
     };
 
-    checkGmailPrompt();
-  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+    checkSmsPrompt();
+  }, [user?.uid, addFlight]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (

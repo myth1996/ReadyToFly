@@ -5,7 +5,7 @@
 // Free tier: 500 calls/month. Upgrade for higher limits.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AVIATION_STACK_KEY = 'YOUR_AVIATIONSTACK_KEY_HERE';
+import { AVIATION_STACK_KEY } from '../config/env';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
