@@ -179,21 +179,21 @@ export function TripDashboardScreen() {
 
   const quickTools = [
     { icon: '🕐', label: t.leaveByTitle, onPress: () => navigation.navigate('LeaveBy') },
-    { icon: '📋', label: t.docCheckTitle, onPress: undefined },
+    { icon: '📋', label: t.docCheckTitle, onPress: () => navigation.navigate('DocChecklist') },
     { icon: '😌', label: t.calmModeTitle, onPress: undefined },
     { icon: '🔔', label: t.flightAlertsTitle, onPress: undefined },
     { icon: '🛠️', label: 'All Tools', onPress: () => setShowAllTools(true) },
   ];
 
   const allTools = [
-    { icon: '🕐', label: 'Leave-By Time',    desc: 'When to leave for the airport',   onPress: () => { setShowAllTools(false); navigation.navigate('LeaveBy'); } },
-    { icon: '📋', label: 'Doc Checklist',     desc: 'Passport, boarding pass & more',  onPress: undefined },
-    { icon: '😌', label: 'Calm Mode',         desc: 'Relaxing sounds for anxious flyers', onPress: undefined },
-    { icon: '🔔', label: 'Flight Alerts',     desc: 'Delay & gate-change notifications', onPress: undefined },
-    { icon: '🗺️', label: 'Airport Guide',     desc: 'Maps, lounges & facilities',       onPress: () => { setShowAllTools(false); navigation.getParent()?.navigate('Airport Guide'); } },
-    { icon: '🍽️', label: 'Food & Lounge',    desc: 'Restaurants near your gate',       onPress: undefined },
-    { icon: '💱', label: 'Currency',          desc: 'Live exchange rates at the airport', onPress: undefined },
-    { icon: '🧳', label: 'Baggage Rules',     desc: 'Allowances by airline',            onPress: undefined },
+    { icon: '🕐', label: 'Leave-By Time',    desc: 'When to leave for the airport',   locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('LeaveBy'); } },
+    { icon: '📋', label: 'Doc Checklist',     desc: 'Passport, boarding pass & more',  locked: false, onPress: () => { setShowAllTools(false); navigation.navigate('DocChecklist'); } },
+    { icon: '🗺️', label: 'Airport Guide',     desc: 'Maps, lounges & facilities',     locked: false, onPress: () => { setShowAllTools(false); navigation.getParent()?.navigate('Airport Guide'); } },
+    { icon: '😌', label: 'Calm Mode',         desc: 'Relaxing sounds for anxious flyers', locked: true, onPress: undefined },
+    { icon: '🔔', label: 'Flight Alerts',     desc: 'Delay & gate-change notifications', locked: true, onPress: undefined },
+    { icon: '🍽️', label: 'Food & Lounge',    desc: 'Restaurants near your gate',       locked: true, onPress: undefined },
+    { icon: '💱', label: 'Currency',          desc: 'Live exchange rates at the airport', locked: true, onPress: undefined },
+    { icon: '🧳', label: 'Baggage Rules',     desc: 'Allowances by airline',            locked: true, onPress: undefined },
   ];
 
   const handleLostAtAirport = () => {
@@ -445,12 +445,21 @@ export function TripDashboardScreen() {
             {allTools.map(tool => (
               <TouchableOpacity
                 key={tool.label}
-                style={[styles.allToolCell, { backgroundColor: c.background }]}
-                onPress={tool.onPress ?? (() => { setShowAllTools(false); Alert.alert(tool.label, 'Coming soon!'); })}
-                activeOpacity={0.75}>
-                <Text style={styles.allToolIcon}>{tool.icon}</Text>
-                <Text style={[styles.allToolLabel, { color: c.text }]}>{tool.label}</Text>
-                <Text style={[styles.allToolDesc, { color: c.textSecondary }]}>{tool.desc}</Text>
+                style={[
+                  styles.allToolCell,
+                  { backgroundColor: c.background },
+                  tool.locked && styles.allToolCellLocked,
+                ]}
+                onPress={tool.locked ? undefined : (tool.onPress ?? (() => setShowAllTools(false)))}
+                activeOpacity={tool.locked ? 1 : 0.75}>
+                <View style={styles.allToolIconRow}>
+                  <Text style={[styles.allToolIcon, tool.locked && { opacity: 0.4 }]}>{tool.icon}</Text>
+                  {tool.locked && <Text style={styles.lockBadge}>🔒</Text>}
+                </View>
+                <Text style={[styles.allToolLabel, { color: c.text }, tool.locked && { opacity: 0.4 }]}>{tool.label}</Text>
+                <Text style={[styles.allToolDesc, { color: c.textSecondary }]}>
+                  {tool.locked ? 'Coming Soon' : tool.desc}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -711,7 +720,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
   },
-  allToolIcon: { fontSize: 28, marginBottom: 8 },
+  allToolIconRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  allToolIcon: { fontSize: 28 },
+  lockBadge: { fontSize: 12, marginLeft: 6 },
+  allToolCellLocked: { opacity: 0.7 },
   allToolLabel: { fontSize: 13, fontWeight: '800', marginBottom: 3 },
   allToolDesc: { fontSize: 11, lineHeight: 15 },
 });

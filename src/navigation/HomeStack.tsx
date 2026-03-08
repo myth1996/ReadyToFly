@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { TripDashboardScreen } from '../screens/TripDashboardScreen';
 import { AddFlightScreen } from '../screens/AddFlightScreen';
 import { LeaveByScreen } from '../screens/LeaveByScreen';
+import { DocChecklistScreen } from '../screens/DocChecklistScreen';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { TermsOfServiceScreen } from '../screens/TermsOfServiceScreen';
 import { useSettings } from '../context/SettingsContext';
@@ -23,6 +24,7 @@ export type HomeStackParamList = {
   TripDashboard: undefined;
   AddFlight: undefined;
   LeaveBy: undefined;
+  DocChecklist: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
 };
@@ -136,6 +138,11 @@ export function HomeStack() {
         name="LeaveBy"
         component={LeaveByScreen}
         options={{ headerTitle: '🕐 Leave-By Calculator' }}
+      />
+      <Stack.Screen
+        name="DocChecklist"
+        component={DocChecklistScreen}
+        options={{ headerTitle: '📋 Document Checklist' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"

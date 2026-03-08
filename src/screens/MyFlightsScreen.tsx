@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
-import { colors } from '../theme';
+import { useSettings } from '../context/SettingsContext';
 import { useFlights } from '../context/FlightsContext';
 import {
   FlightData,
@@ -59,74 +60,75 @@ const sk = StyleSheet.create({
 
 // ─── Flight card ──────────────────────────────────────────────────────────────
 function FlightCard({
-  flight, fadeAnim, scaleAnim, f1, f2, f3, f4, onRemove,
+  flight, fadeAnim, scaleAnim, f1, f2, f3, f4, onRemove, colors: c,
 }: {
   flight: FlightData;
   fadeAnim: Animated.Value; scaleAnim: Animated.Value;
   f1: Animated.Value; f2: Animated.Value; f3: Animated.Value; f4: Animated.Value;
   onRemove?: () => void;
+  colors: any;
 }) {
   return (
-    <Animated.View style={[fc.card, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-      <Animated.View style={[fc.header, { opacity: f1 }]}>
-        <View style={[fc.badge, { backgroundColor: statusColor(flight.status) }]}>
-          <Text style={fc.badgeText}>{statusLabel(flight.status)}</Text>
+    <Animated.View style={[fcStyles.card, { backgroundColor: c.card, opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[fcStyles.header, { opacity: f1 }]}>
+        <View style={[fcStyles.badge, { backgroundColor: statusColor(flight.status) }]}>
+          <Text style={fcStyles.badgeText}>{statusLabel(flight.status)}</Text>
         </View>
-        <Text style={fc.flightNum}>{flight.flightIata}</Text>
+        <Text style={[fcStyles.flightNum, { color: c.text }]}>{flight.flightIata}</Text>
         {onRemove && (
-          <TouchableOpacity onPress={onRemove}><Text style={fc.remove}>✕</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onRemove}><Text style={[fcStyles.remove, { color: c.textSecondary }]}>✕</Text></TouchableOpacity>
         )}
       </Animated.View>
-      <Animated.Text style={[fc.airline, { opacity: f1 }]}>
+      <Animated.Text style={[fcStyles.airline, { color: c.textSecondary, opacity: f1 }]}>
         {flight.airline}{flight.pnr ? `  ·  PNR: ${flight.pnr}` : ''}
       </Animated.Text>
-      <View style={fc.div} />
-      <Animated.View style={[fc.route, { opacity: f2 }]}>
+      <View style={[fcStyles.div, { backgroundColor: c.border }]} />
+      <Animated.View style={[fcStyles.route, { opacity: f2 }]}>
         <View>
-          <Text style={fc.iata}>{flight.dep.iata}</Text>
-          <Text style={fc.time}>{formatISOTime(flight.dep.scheduledTime)}</Text>
+          <Text style={[fcStyles.iata, { color: c.text }]}>{flight.dep.iata}</Text>
+          <Text style={[fcStyles.time, { color: c.textSecondary }]}>{formatISOTime(flight.dep.scheduledTime)}</Text>
         </View>
-        <Text style={fc.plane}>✈</Text>
+        <Text style={[fcStyles.plane, { color: c.primary }]}>✈</Text>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[fc.iata, { color: colors.primary }]}>{flight.arr.iata}</Text>
-          <Text style={fc.time}>{formatISOTime(flight.arr.scheduledTime)}</Text>
+          <Text style={[fcStyles.iata, { color: c.primary }]}>{flight.arr.iata}</Text>
+          <Text style={[fcStyles.time, { color: c.textSecondary }]}>{formatISOTime(flight.arr.scheduledTime)}</Text>
         </View>
       </Animated.View>
-      <Animated.View style={[fc.chips, { opacity: f3 }]}>
-        {flight.dep.terminal ? <View style={fc.chip}><Text style={fc.chipTxt}>Terminal {flight.dep.terminal}</Text></View> : null}
-        {flight.arr.gate ? <View style={[fc.chip, { backgroundColor: colors.primary + '18' }]}><Text style={[fc.chipTxt, { color: colors.primary }]}>Gate {flight.arr.gate}</Text></View> : null}
+      <Animated.View style={[fcStyles.chips, { opacity: f3 }]}>
+        {flight.dep.terminal ? <View style={[fcStyles.chip, { backgroundColor: c.background }]}><Text style={[fcStyles.chipTxt, { color: c.text }]}>Terminal {flight.dep.terminal}</Text></View> : null}
+        {flight.arr.gate ? <View style={[fcStyles.chip, { backgroundColor: c.primary + '18' }]}><Text style={[fcStyles.chipTxt, { color: c.primary }]}>Gate {flight.arr.gate}</Text></View> : null}
       </Animated.View>
-      <Animated.View style={[fc.airports, { opacity: f4 }]}>
-        <Text style={fc.airportName} numberOfLines={1}>{flight.dep.airport}</Text>
-        <Text style={[fc.airportName, { textAlign: 'right' }]} numberOfLines={1}>{flight.arr.airport}</Text>
+      <Animated.View style={[fcStyles.airports, { opacity: f4 }]}>
+        <Text style={[fcStyles.airportName, { color: c.textSecondary }]} numberOfLines={1}>{flight.dep.airport}</Text>
+        <Text style={[fcStyles.airportName, { color: c.textSecondary, textAlign: 'right' }]} numberOfLines={1}>{flight.arr.airport}</Text>
       </Animated.View>
     </Animated.View>
   );
 }
-const fc = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderRadius: 16, padding: 20, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 8 },
+const fcStyles = StyleSheet.create({
+  card: { borderRadius: 16, padding: 20, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 8 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 10 },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  flightNum: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
-  remove: { fontSize: 16, color: colors.textSecondary },
-  airline: { fontSize: 13, color: colors.textSecondary, marginBottom: 14 },
-  div: { height: 1, backgroundColor: colors.border, marginBottom: 14 },
+  flightNum: { fontSize: 18, fontWeight: '800', flex: 1 },
+  remove: { fontSize: 16 },
+  airline: { fontSize: 13, marginBottom: 14 },
+  div: { height: 1, marginBottom: 14 },
   route: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  iata: { fontSize: 26, fontWeight: '800', color: colors.text },
-  time: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  plane: { fontSize: 22, color: colors.primary },
+  iata: { fontSize: 26, fontWeight: '800' },
+  time: { fontSize: 13, marginTop: 2 },
+  plane: { fontSize: 22 },
   chips: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  chip: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  chipTxt: { fontSize: 12, fontWeight: '700', color: colors.text },
+  chip: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  chipTxt: { fontSize: 12, fontWeight: '700' },
   airports: { flexDirection: 'row', justifyContent: 'space-between' },
-  airportName: { fontSize: 11, color: colors.textSecondary, flex: 1 },
+  airportName: { fontSize: 11, flex: 1 },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function MyFlightsScreen() {
-  // Use shared FlightsContext
-  const { flights, addFlight, removeFlight } = useFlights();
+  const { themeColors: c } = useSettings();
+  const { flights, addFlight, removeFlight, refreshAllFlights, isRefreshing } = useFlights();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [pnr, setPnr] = useState('');
@@ -145,13 +147,27 @@ export function MyFlightsScreen() {
   const f3 = useRef(new Animated.Value(0)).current;
   const f4 = useRef(new Animated.Value(0)).current;
 
-  // Saved card animation refs
+  // Saved card animation refs — capped to flights.length to prevent memory leaks
   const savedFades  = useRef<Animated.Value[]>([]);
   const savedScales = useRef<Animated.Value[]>([]);
   const savedF1s    = useRef<Animated.Value[]>([]);
   const savedF2s    = useRef<Animated.Value[]>([]);
   const savedF3s    = useRef<Animated.Value[]>([]);
   const savedF4s    = useRef<Animated.Value[]>([]);
+
+  // Keep animation arrays in sync with flights length
+  useEffect(() => {
+    const len = flights.length;
+    // Trim if flights were removed
+    if (savedFades.current.length > len) {
+      savedFades.current.length = len;
+      savedScales.current.length = len;
+      savedF1s.current.length = len;
+      savedF2s.current.length = len;
+      savedF3s.current.length = len;
+      savedF4s.current.length = len;
+    }
+  }, [flights.length]);
 
   useEffect(() => {
     if (lookupState === 'loading') {
@@ -205,7 +221,6 @@ export function MyFlightsScreen() {
 
   const handleSave = () => {
     if (!pendingFlight) { return; }
-    // Prepare animation values for new card
     savedFades.current.push(new Animated.Value(0));
     savedScales.current.push(new Animated.Value(0.92));
     savedF1s.current.push(new Animated.Value(0));
@@ -217,17 +232,17 @@ export function MyFlightsScreen() {
 
     const idx = flights.length;
     setTimeout(() => {
-      const f  = savedFades.current[idx];
-      const s  = savedScales.current[idx];
+      const fa = savedFades.current[idx];
+      const sc = savedScales.current[idx];
       const a1 = savedF1s.current[idx];
       const a2 = savedF2s.current[idx];
       const a3 = savedF3s.current[idx];
       const a4 = savedF4s.current[idx];
-      if (!f) { return; }
+      if (!fa) { return; }
       Animated.sequence([
         Animated.parallel([
-          Animated.spring(s, { toValue: 1, tension: 120, friction: 8, useNativeDriver: true }),
-          Animated.timing(f, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.spring(sc, { toValue: 1, tension: 120, friction: 8, useNativeDriver: true }),
+          Animated.timing(fa, { toValue: 1, duration: 300, useNativeDriver: true }),
         ]),
         Animated.stagger(100, [
           Animated.timing(a1, { toValue: 1, duration: 200, useNativeDriver: true }),
@@ -246,17 +261,31 @@ export function MyFlightsScreen() {
   };
   const closeModal = () => { setModalVisible(false); setLookupState('idle'); setPendingFlight(null); };
 
+  const handleRefresh = useCallback(() => {
+    refreshAllFlights();
+  }, [refreshAllFlights]);
+
   return (
-    <View style={styles.root}>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.content, flights.length === 0 && styles.center]}>
-        <Text style={styles.heading}>My Flights</Text>
-        <Text style={styles.subheading}>Track real-time status, gate & delay info</Text>
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, flights.length === 0 && styles.center]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={c.primary}
+            colors={[c.primary]}
+          />
+        }>
+        <Text style={[styles.heading, { color: c.text }]}>My Flights</Text>
+        <Text style={[styles.subheading, { color: c.textSecondary }]}>Track real-time status, gate & delay info</Text>
 
         {flights.length === 0 ? (
-          <View style={styles.emptyBox}>
+          <View style={[styles.emptyBox, { backgroundColor: c.card }]}>
             <Text style={styles.emptyIcon}>✈️</Text>
-            <Text style={styles.emptyTitle}>No flights added yet</Text>
-            <Text style={styles.emptyDesc}>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>No flights added yet</Text>
+            <Text style={[styles.emptyDesc, { color: c.textSecondary }]}>
               Enter your PNR & flight number — we'll fetch live status, gate info, and delay alerts instantly.
             </Text>
           </View>
@@ -273,55 +302,56 @@ export function MyFlightsScreen() {
                 fadeAnim={fade} scaleAnim={scale}
                 f1={a1} f2={a2} f3={a3} f4={a4}
                 onRemove={() => removeFlight(idx)}
+                colors={c}
               />
             );
           })
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={openModal}>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: c.primary }]} onPress={openModal}>
         <Text style={styles.fabText}>+ Add Flight</Text>
       </TouchableOpacity>
 
       {/* ── Add Flight Modal ─────────────────────────────────────────── */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
-        <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={[styles.modalRoot, { backgroundColor: c.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Flight</Text>
+              <Text style={[styles.modalTitle, { color: c.text }]}>Add Flight</Text>
               <TouchableOpacity onPress={closeModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: c.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
 
             {(lookupState === 'idle' || lookupState === 'error') && (
               <View>
-                <Text style={styles.label}>PNR / Booking Reference</Text>
-                <TextInput style={styles.input} placeholder="e.g. ABCDEF (optional)" placeholderTextColor={colors.textSecondary} value={pnr} onChangeText={setPnr} autoCapitalize="characters" maxLength={10} />
-                <Text style={styles.label}>Flight Number <Text style={styles.req}>*</Text></Text>
-                <TextInput style={styles.input} placeholder="e.g. 6E204, AI302, SG101" placeholderTextColor={colors.textSecondary} value={flightNum} onChangeText={setFlightNum} autoCapitalize="characters" maxLength={8} />
-                <Text style={styles.label}>Travel Date <Text style={styles.req}>*</Text></Text>
+                <Text style={[styles.label, { color: c.text }]}>PNR / Booking Reference</Text>
+                <TextInput style={[styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.card }]} placeholder="e.g. ABCDEF (optional)" placeholderTextColor={c.textSecondary} value={pnr} onChangeText={setPnr} autoCapitalize="characters" maxLength={10} />
+                <Text style={[styles.label, { color: c.text }]}>Flight Number <Text style={styles.req}>*</Text></Text>
+                <TextInput style={[styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.card }]} placeholder="e.g. 6E204, AI302, SG101" placeholderTextColor={c.textSecondary} value={flightNum} onChangeText={setFlightNum} autoCapitalize="characters" maxLength={8} />
+                <Text style={[styles.label, { color: c.text }]}>Travel Date <Text style={styles.req}>*</Text></Text>
                 <View style={styles.dateRow}>
-                  <TouchableOpacity style={[styles.chip, travelDate === todayISO() && styles.chipActive]} onPress={() => setTravelDate(todayISO())}>
-                    <Text style={[styles.chipTxt, travelDate === todayISO() && styles.chipTxtActive]}>Today</Text>
+                  <TouchableOpacity style={[styles.chip, { borderColor: c.border, backgroundColor: c.card }, travelDate === todayISO() && { borderColor: c.primary, backgroundColor: c.primary + '18' }]} onPress={() => setTravelDate(todayISO())}>
+                    <Text style={[styles.chipTxt, { color: c.textSecondary }, travelDate === todayISO() && { color: c.primary }]}>Today</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.chip, travelDate === tomorrowISO() && styles.chipActive]} onPress={() => setTravelDate(tomorrowISO())}>
-                    <Text style={[styles.chipTxt, travelDate === tomorrowISO() && styles.chipTxtActive]}>Tomorrow</Text>
+                  <TouchableOpacity style={[styles.chip, { borderColor: c.border, backgroundColor: c.card }, travelDate === tomorrowISO() && { borderColor: c.primary, backgroundColor: c.primary + '18' }]} onPress={() => setTravelDate(tomorrowISO())}>
+                    <Text style={[styles.chipTxt, { color: c.textSecondary }, travelDate === tomorrowISO() && { color: c.primary }]}>Tomorrow</Text>
                   </TouchableOpacity>
                 </View>
-                <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textSecondary} value={travelDate} onChangeText={setTravelDate} keyboardType="numbers-and-punctuation" maxLength={10} />
+                <TextInput style={[styles.input, { marginTop: 8, borderColor: c.border, color: c.text, backgroundColor: c.card }]} placeholder="YYYY-MM-DD" placeholderTextColor={c.textSecondary} value={travelDate} onChangeText={setTravelDate} keyboardType="numbers-and-punctuation" maxLength={10} />
                 {lookupState === 'error' && <View style={styles.errBox}><Text style={styles.errTxt}>⚠️ {errorMsg}</Text></View>}
-                <TouchableOpacity style={styles.lookupBtn} onPress={handleLookup}>
+                <TouchableOpacity style={[styles.lookupBtn, { backgroundColor: c.primary }]} onPress={handleLookup}>
                   <Text style={styles.lookupBtnTxt}>🔍  Look Up Flight</Text>
                 </TouchableOpacity>
-                <Text style={styles.hint}>💡 Best results within 48 hrs of departure.</Text>
+                <Text style={[styles.hint, { color: c.textSecondary }]}>💡 Best results within 48 hrs of departure.</Text>
               </View>
             )}
 
             {lookupState === 'loading' && (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator color={colors.primary} style={{ marginBottom: 8 }} />
-                <Text style={styles.loadingTxt}>Fetching flight details...</Text>
+                <ActivityIndicator color={c.primary} style={{ marginBottom: 8 }} />
+                <Text style={[styles.loadingTxt, { color: c.textSecondary }]}>Fetching flight details...</Text>
                 <SkeletonCard opacity={shimmerAnim} />
               </View>
             )}
@@ -329,12 +359,12 @@ export function MyFlightsScreen() {
             {lookupState === 'success' && pendingFlight && (
               <View>
                 <Text style={styles.foundTxt}>✅ Flight found!</Text>
-                <FlightCard flight={pendingFlight} fadeAnim={cardFade} scaleAnim={cardScale} f1={f1} f2={f2} f3={f3} f4={f4} />
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                <FlightCard flight={pendingFlight} fadeAnim={cardFade} scaleAnim={cardScale} f1={f1} f2={f2} f3={f3} f4={f4} colors={c} />
+                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: c.primary }]} onPress={handleSave}>
                   <Text style={styles.saveBtnTxt}>Save to My Trips →</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.retryBtn} onPress={() => { setLookupState('idle'); setPendingFlight(null); }}>
-                  <Text style={styles.retryTxt}>Search a different flight</Text>
+                  <Text style={[styles.retryTxt, { color: c.textSecondary }]}>Search a different flight</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -346,41 +376,39 @@ export function MyFlightsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1 },
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 100 },
   center: { flexGrow: 1 },
-  heading: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  subheading: { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
-  emptyBox: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 40, elevation: 1, marginTop: 20 },
+  heading: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+  subheading: { fontSize: 14, marginBottom: 24 },
+  emptyBox: { alignItems: 'center', borderRadius: 16, padding: 40, elevation: 1, marginTop: 20 },
   emptyIcon: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 10 },
-  emptyDesc: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
-  fab: { position: 'absolute', bottom: 24, left: 20, right: 20, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', elevation: 6, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10 },
-  fabText: { color: colors.white, fontWeight: '800', fontSize: 16 },
-  modalRoot: { flex: 1, backgroundColor: colors.background },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
+  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  fab: { position: 'absolute', bottom: 24, left: 20, right: 20, borderRadius: 14, paddingVertical: 16, alignItems: 'center', elevation: 6, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10 },
+  fabText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  modalRoot: { flex: 1 },
   modalContent: { padding: 20, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 20, color: colors.textSecondary },
-  label: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8, marginTop: 4 },
-  req: { color: colors.error },
-  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: colors.text, backgroundColor: colors.card, marginBottom: 16 },
+  modalTitle: { fontSize: 22, fontWeight: '800' },
+  modalClose: { fontSize: 20 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginTop: 4 },
+  req: { color: '#EF4444' },
+  input: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, marginBottom: 16 },
   dateRow: { flexDirection: 'row', gap: 10 },
-  chip: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 8, backgroundColor: colors.card },
-  chipActive: { borderColor: colors.primary, backgroundColor: colors.primary + '18' },
-  chipTxt: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  chipTxtActive: { color: colors.primary },
-  errBox: { backgroundColor: colors.error + '18', borderRadius: 10, padding: 14, marginBottom: 16 },
-  errTxt: { color: colors.error, fontSize: 13, lineHeight: 20 },
-  lookupBtn: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16, elevation: 2 },
+  chip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 8 },
+  chipTxt: { fontSize: 13, fontWeight: '600' },
+  errBox: { backgroundColor: '#EF444418', borderRadius: 10, padding: 14, marginBottom: 16 },
+  errTxt: { color: '#EF4444', fontSize: 13, lineHeight: 20 },
+  lookupBtn: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16, elevation: 2 },
   lookupBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  hint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
+  hint: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
   loadingWrap: { alignItems: 'center' },
-  loadingTxt: { fontSize: 14, color: colors.textSecondary, marginBottom: 4 },
-  foundTxt: { fontSize: 15, fontWeight: '700', color: colors.success, marginBottom: 12 },
-  saveBtn: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 16, marginBottom: 12, elevation: 2 },
+  loadingTxt: { fontSize: 14, marginBottom: 4 },
+  foundTxt: { fontSize: 15, fontWeight: '700', color: '#10B981', marginBottom: 12 },
+  saveBtn: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 16, marginBottom: 12, elevation: 2 },
   saveBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
   retryBtn: { alignItems: 'center', paddingVertical: 10 },
-  retryTxt: { color: colors.textSecondary, fontSize: 14 },
+  retryTxt: { fontSize: 14 },
 });

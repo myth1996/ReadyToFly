@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lightColors, darkColors } from '../theme';
 
 export type Language = 'en' | 'hi';
+
+const DARK_KEY = 'flyeasy_dark_mode';
+const LANG_KEY = 'flyeasy_language';
 
 // ─── Translations ────────────────────────────────────────────────────────────
 export const translations = {
@@ -26,6 +30,23 @@ export const translations = {
     termsOfService: 'Terms of Service',
     appVersion: 'FlyEasy v1.0.0',
     close: 'Close',
+    // Flight status (used across screens)
+    statusOnTime: 'On Time',
+    statusDelayed: 'Delayed',
+    statusCancelled: 'Cancelled',
+    statusLanded: 'Landed',
+    statusDiverted: 'Diverted',
+    statusScheduled: 'Scheduled',
+    statusActive: 'In Air',
+    // Common actions
+    comingSoon: 'Coming Soon',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    refresh: 'Refresh',
+    search: 'Search',
+    addFlight: 'Add Flight',
+    noFlights: 'No flights yet',
   },
   hi: {
     appTagline: 'डर के बिना उड़ान',
@@ -48,6 +69,23 @@ export const translations = {
     termsOfService: 'सेवा की शर्तें',
     appVersion: 'FlyEasy v1.0.0',
     close: 'बंद करें',
+    // Flight status
+    statusOnTime: 'समय पर',
+    statusDelayed: 'विलंबित',
+    statusCancelled: 'रद्द',
+    statusLanded: 'उतर चुकी',
+    statusDiverted: 'मार्ग बदला',
+    statusScheduled: 'निर्धारित',
+    statusActive: 'हवा में',
+    // Common actions
+    comingSoon: 'जल्द आ रहा है',
+    save: 'सहेजें',
+    cancel: 'रद्द करें',
+    delete: 'हटाएं',
+    refresh: 'रिफ्रेश',
+    search: 'खोजें',
+    addFlight: 'उड़ान जोड़ें',
+    noFlights: 'कोई उड़ान नहीं',
   },
 };
 
@@ -73,9 +111,35 @@ const SettingsContext = createContext<SettingsContextType>({
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('en');
+  const initialised = useRef(false);
 
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+  // Load persisted settings on mount
+  useEffect(() => {
+    AsyncStorage.multiGet([DARK_KEY, LANG_KEY])
+      .then((results: readonly [string, string | null][]) => {
+        const darkVal = results[0][1];
+        const langVal = results[1][1];
+        if (darkVal !== null) { setIsDarkMode(darkVal === 'true'); }
+        if (langVal === 'hi' || langVal === 'en') { setLanguageState(langVal); }
+      })
+      .finally(() => {
+        initialised.current = true;
+      });
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      AsyncStorage.setItem(DARK_KEY, String(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    AsyncStorage.setItem(LANG_KEY, lang).catch(() => {});
+  };
 
   const value: SettingsContextType = {
     isDarkMode,

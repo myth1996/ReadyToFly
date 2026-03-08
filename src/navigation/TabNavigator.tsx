@@ -5,7 +5,7 @@ import { HomeStack } from './HomeStack';
 import { AirportGuideScreen } from '../screens/AirportGuideScreen';
 import { MyFlightsScreen } from '../screens/MyFlightsScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
-import { colors } from '../theme';
+import { useSettings } from '../context/SettingsContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -18,14 +18,16 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 }
 
 export function TabNavigator() {
+  const { themeColors: c, isDarkMode } = useSettings();
+
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopColor: colors.border,
+          backgroundColor: isDarkMode ? c.card : c.white,
+          borderTopColor: c.border,
           height: 64,
           paddingBottom: 10,
           paddingTop: 6,
@@ -33,11 +35,12 @@ export function TabNavigator() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
+          color: c.textSecondary,
         },
         headerStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: isDarkMode ? c.card : c.primary,
         },
-        headerTintColor: colors.white,
+        headerTintColor: c.white,
         headerTitleStyle: {
           fontWeight: '800',
           fontSize: 18,

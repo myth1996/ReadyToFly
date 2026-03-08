@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import auth from '@react-native-firebase/auth';
 import { colors } from '../theme';
+
+const RESEND_COOLDOWN = 30; // seconds
 
 type Props = {
   confirmation: any;
@@ -19,7 +22,36 @@ type Props = {
 export function OtpScreen({ confirmation, phoneNumber, onBack }: Props) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
+  const [resending, setResending] = useState(false);
+  const [currentConfirmation, setCurrentConfirmation] = useState(confirmation);
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  // Resend countdown timer
+  useEffect(() => {
+    if (resendTimer <= 0) { return; }
+    const id = setInterval(() => {
+      setResendTimer(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [resendTimer]);
+
+  const handleResend = async () => {
+    if (resendTimer > 0 || resending) { return; }
+    setResending(true);
+    try {
+      const newConfirmation = await auth().signInWithPhoneNumber(`+91${phoneNumber}`);
+      setCurrentConfirmation(newConfirmation);
+      setResendTimer(RESEND_COOLDOWN);
+      setOtp(['', '', '', '', '', '']);
+      inputs.current[0]?.focus();
+      Alert.alert('OTP Sent', 'A new OTP has been sent to your phone.');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message ?? 'Failed to resend OTP. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleChange = (value: string, index: number) => {
     if (!/^\d?$/.test(value)) {return;}
@@ -45,7 +77,7 @@ export function OtpScreen({ confirmation, phoneNumber, onBack }: Props) {
     }
     setLoading(true);
     try {
-      await confirmation.confirm(code);
+      await currentConfirmation.confirm(code);
       // Auth state change is handled by AuthContext automatically
     } catch {
       Alert.alert('Wrong OTP', 'The code you entered is incorrect. Please try again.');
@@ -94,6 +126,19 @@ export function OtpScreen({ confirmation, phoneNumber, onBack }: Props) {
             <Text style={styles.btnText}>Verify & Continue →</Text>
           )}
         </TouchableOpacity>
+
+        {/* Resend OTP */}
+        <View style={styles.resendRow}>
+          {resendTimer > 0 ? (
+            <Text style={styles.resendTimer}>Resend OTP in {resendTimer}s</Text>
+          ) : (
+            <TouchableOpacity onPress={handleResend} disabled={resending}>
+              <Text style={styles.resendBtn}>
+                {resending ? 'Sending...' : 'Resend OTP'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backText}>← Change number</Text>
@@ -170,6 +215,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 16,
     fontWeight: '800',
+  },
+  resendRow: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  resendTimer: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  resendBtn: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   backBtn: {
     marginTop: 20,

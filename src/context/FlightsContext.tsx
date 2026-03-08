@@ -1,5 +1,9 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlightData } from '../services/FlightService';
+import { FEATURES } from '../config/env';
+
+const STORAGE_KEY = 'flyeasy_flights';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,20 +52,53 @@ type FlightsContextType = {
   flights: FlightData[];
   addFlight: (flight: FlightData) => void;
   removeFlight: (index: number) => void;
+  updateFlight: (index: number, updated: FlightData) => void;
+  refreshAllFlights: () => Promise<void>;
   nextFlight: FlightData | null;
+  isRefreshing: boolean;
+  lastRefreshAt: number | null;
 };
 
 const FlightsContext = createContext<FlightsContextType>({
   flights: [],
   addFlight: () => {},
   removeFlight: () => {},
+  updateFlight: () => {},
+  refreshAllFlights: async () => {},
   nextFlight: null,
+  isRefreshing: false,
+  lastRefreshAt: null,
 });
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function FlightsProvider({ children }: { children: React.ReactNode }) {
   const [flights, setFlights] = useState<FlightData[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
+  const initialised = useRef(false);
+
+  // Load flights from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw: string | null) => {
+        if (raw) {
+          try {
+            const parsed: FlightData[] = JSON.parse(raw);
+            setFlights(parsed);
+          } catch (_) {}
+        }
+      })
+      .finally(() => {
+        initialised.current = true;
+      });
+  }, []);
+
+  // Persist to AsyncStorage whenever flights change (but only after initial load)
+  useEffect(() => {
+    if (!initialised.current) { return; }
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(flights)).catch(() => {});
+  }, [flights]);
 
   const addFlight = useCallback((flight: FlightData) => {
     setFlights(prev => [...prev, flight]);
@@ -71,10 +108,43 @@ export function FlightsProvider({ children }: { children: React.ReactNode }) {
     setFlights(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const updateFlight = useCallback((index: number, updated: FlightData) => {
+    setFlights(prev => prev.map((f, i) => (i === index ? updated : f)));
+  }, []);
+
+  const refreshAllFlights = useCallback(async () => {
+    // Rate-limit: don't refresh more than once per REFRESH_COOLDOWN_SEC
+    if (lastRefreshAt && Date.now() - lastRefreshAt < FEATURES.REFRESH_COOLDOWN_SEC * 1000) {
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      const { lookupFlight } = require('../services/FlightService');
+      const updated = await Promise.all(
+        flights.map(async (f) => {
+          try {
+            const depDate = f.dep.scheduledTime
+              ? new Date(f.dep.scheduledTime).toISOString().slice(0, 10)
+              : new Date().toISOString().slice(0, 10);
+            const refreshed = await lookupFlight(f.flightIata, depDate, f.pnr);
+            return refreshed ?? f;
+          } catch (_) {
+            return f; // keep old data on error
+          }
+        }),
+      );
+      setFlights(updated);
+      setLastRefreshAt(Date.now());
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [flights, lastRefreshAt]);
+
   const nextFlight = getNextFlight(flights);
 
   return (
-    <FlightsContext.Provider value={{ flights, addFlight, removeFlight, nextFlight }}>
+    <FlightsContext.Provider
+      value={{ flights, addFlight, removeFlight, updateFlight, refreshAllFlights, nextFlight, isRefreshing, lastRefreshAt }}>
       {children}
     </FlightsContext.Provider>
   );

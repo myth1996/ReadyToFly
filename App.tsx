@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { StatusBar, View, ActivityIndicator, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { FlightsProvider } from './src/context/FlightsContext';
@@ -9,10 +10,7 @@ import { TabNavigator } from './src/navigation/TabNavigator';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { lightColors } from './src/theme';
 
-// Module-level flag — resets each app launch, but prevents showing the dialog
-// multiple times in one session. For persistent storage across launches,
-// replace with Firestore user-doc flag once backend is integrated.
-let gmailPromptShownThisSession = false;
+const GMAIL_ASKED_KEY = 'flyeasy_gmail_asked';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -20,7 +18,6 @@ function AppContent() {
   const prevUidRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Only trigger once after a fresh login (uid transitions from null → value)
     if (!user) {
       prevUidRef.current = null;
       return;
@@ -28,28 +25,36 @@ function AppContent() {
     if (prevUidRef.current === user.uid) { return; }
     prevUidRef.current = user.uid;
 
-    if (gmailPromptShownThisSession) { return; }
-    gmailPromptShownThisSession = true;
+    // Show Gmail permission prompt only ONCE ever (persisted across app restarts)
+    const checkGmailPrompt = async () => {
+      try {
+        const asked = await AsyncStorage.getItem(GMAIL_ASKED_KEY);
+        if (asked) { return; }
+        await AsyncStorage.setItem(GMAIL_ASKED_KEY, 'true');
+      } catch (_) {
+        return; // don't show if storage fails
+      }
 
-    // Slight delay so the dashboard fully renders before the dialog appears
-    const timer = setTimeout(() => {
-      Alert.alert(
-        '✈️ Auto-Fetch Flight Emails?',
-        'Allow FlyEasy to scan your Gmail for flight booking confirmations?\n\nThis lets us import your trips automatically — no manual entry needed.\n\n🔒 We only read airline booking emails. Your messages are never stored or shared.',
-        [
-          { text: 'Not Now', style: 'cancel' },
-          {
-            text: 'Allow Gmail',
-            onPress: () => {
-              // TODO: trigger Google OAuth with Gmail readonly scope
-              Alert.alert('Coming Soon', 'Gmail auto-import will be available in an upcoming update!');
+      // Slight delay so the dashboard renders before the dialog
+      setTimeout(() => {
+        Alert.alert(
+          '✈️ Auto-Fetch Flight Details?',
+          'Allow FlyEasy to scan your SMS for flight booking confirmations?\n\nThis lets us import your trips automatically — no manual entry needed.\n\n🔒 All parsing happens on your phone. Your messages are never sent to any server.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Allow',
+              onPress: () => {
+                // TODO: trigger SMS permission request
+                Alert.alert('Coming Soon', 'SMS auto-import will be available in the next update!');
+              },
             },
-          },
-        ],
-      );
-    }, 1200);
+          ],
+        );
+      }, 1200);
+    };
 
-    return () => clearTimeout(timer);
+    checkGmailPrompt();
   }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {

@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  ActivityIndicator,
+  Linking,
 } from 'react-native';
-import { colors } from '../theme';
+import { useSettings } from '../context/SettingsContext';
+import { useFlights } from '../context/FlightsContext';
+import { formatISOTime } from '../services/FlightService';
+import { notificationService } from '../services/NotificationService';
 
 // Buffer times in minutes
 const DOMESTIC_CHECKIN = 60;
@@ -18,6 +21,28 @@ const INTERNATIONAL_CHECKIN = 90;
 const SECURITY_TIME = 30;
 const GATE_TIME = 20;
 const LOW_BUFFER_WARN = 30;
+
+// Airport name lookup for Google Maps
+const AIRPORT_NAMES: Record<string, string> = {
+  DEL: 'Indira Gandhi International Airport Delhi',
+  BOM: 'Chhatrapati Shivaji Maharaj International Airport Mumbai',
+  BLR: 'Kempegowda International Airport Bengaluru',
+  MAA: 'Chennai International Airport',
+  HYD: 'Rajiv Gandhi International Airport Hyderabad',
+  CCU: 'Netaji Subhas Chandra Bose International Airport Kolkata',
+  COK: 'Cochin International Airport Kochi',
+  PNQ: 'Pune International Airport',
+  AMD: 'Sardar Vallabhbhai Patel International Airport Ahmedabad',
+  GOI: 'Manohar International Airport Goa',
+  GAU: 'Lokpriya Gopinath Bordoloi Airport Guwahati',
+  JAI: 'Jaipur International Airport',
+  LKO: 'Chaudhary Charan Singh International Airport Lucknow',
+  IXC: 'Chandigarh International Airport',
+  PAT: 'Jay Prakash Narayan Airport Patna',
+  NAG: 'Dr. Babasaheb Ambedkar International Airport Nagpur',
+  VNS: 'Lal Bahadur Shastri Airport Varanasi',
+  IXR: 'Birsa Munda Airport Ranchi',
+};
 
 type Result = {
   leaveByTime: Date;
@@ -50,6 +75,9 @@ function getCountdown(leaveBy: Date) {
 }
 
 export function LeaveByScreen() {
+  const { themeColors: c } = useSettings();
+  const { nextFlight } = useFlights();
+
   const [flightNum, setFlightNum] = useState('');
   const [departureHour, setDepartureHour] = useState('');
   const [departureMin, setDepartureMin] = useState('');
@@ -57,10 +85,11 @@ export function LeaveByScreen() {
   const [isInternational, setIsInternational] = useState(false);
   const [hasBaggage, setHasBaggage] = useState(true);
   const [travelMins, setTravelMins] = useState('');
-  const [loadingMaps, setLoadingMaps] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [countdown, setCountdown] = useState('');
   const [countdownUrgent, setCountdownUrgent] = useState(false);
+  const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
+  const [depAirportIata, setDepAirportIata] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -75,6 +104,35 @@ export function LeaveByScreen() {
     }
     return () => { if (timerRef.current) { clearInterval(timerRef.current); } };
   }, [result]);
+
+  // Pre-fill from next flight
+  const handlePrefill = () => {
+    if (!nextFlight) { return; }
+    const depDate = new Date(nextFlight.dep.scheduledTime);
+    const h24 = depDate.getHours();
+    const m = depDate.getMinutes();
+    const am = h24 < 12;
+
+    setFlightNum(nextFlight.flightIata);
+    setDepartureHour(String(h24 % 12 || 12));
+    setDepartureMin(pad(m));
+    setIsAM(am);
+    setDepAirportIata(nextFlight.dep.iata);
+    setPrefilledFrom(nextFlight.flightIata);
+  };
+
+  const openGoogleMaps = () => {
+    const airportName = AIRPORT_NAMES[depAirportIata] ?? `${depAirportIata} Airport India`;
+    const url = `google.navigation:q=${encodeURIComponent(airportName)}`;
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        // Fallback to Google Maps web
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(airportName)}`);
+      }
+    });
+  };
 
   const calculate = () => {
     const h = parseInt(departureHour, 10);
@@ -95,16 +153,13 @@ export function LeaveByScreen() {
     let hour24 = h % 12;
     if (!isAM) { hour24 += 12; }
     dep.setHours(hour24, m, 0, 0);
-    // If departure appears to be in the past, assume tomorrow
     if (dep.getTime() < now.getTime()) {
       dep.setDate(dep.getDate() + 1);
     }
 
     const checkinMins = isInternational ? INTERNATIONAL_CHECKIN : DOMESTIC_CHECKIN;
-    // If no baggage, reduce check-in by 20 min (online check-in)
     const effectiveCheckin = hasBaggage ? checkinMins : Math.max(checkinMins - 20, 30);
     const totalMins = travel + effectiveCheckin + SECURITY_TIME + GATE_TIME;
-
     const leaveByTime = new Date(dep.getTime() - totalMins * 60 * 1000);
 
     setResult({
@@ -116,6 +171,21 @@ export function LeaveByScreen() {
       totalMins,
       departureTime: dep,
     });
+
+    // Schedule notification
+    scheduleReminder(leaveByTime, flightNum, depAirportIata);
+  };
+
+  const scheduleReminder = async (leaveByTime: Date, flight: string, depIata: string) => {
+    try {
+      const hasPermission = await notificationService.requestPermission();
+      if (!hasPermission) { return; }
+      await notificationService.scheduleLeaveByReminder({
+        flightIata: flight || 'flight',
+        leaveByTime,
+        depIata: depIata || 'airport',
+      });
+    } catch (_) { /* fail silently */ }
   };
 
   const reset = () => {
@@ -124,20 +194,48 @@ export function LeaveByScreen() {
     setDepartureHour('');
     setDepartureMin('');
     setTravelMins('');
+    setPrefilledFrom(null);
+    setDepAirportIata('');
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.heading}>Leave-By Calculator</Text>
-      <Text style={styles.subheading}>Know exactly when to leave home</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: c.background }]}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled">
+      <Text style={[styles.heading, { color: c.text }]}>Leave-By Calculator</Text>
+      <Text style={[styles.subheading, { color: c.textSecondary }]}>Know exactly when to leave home</Text>
+
+      {/* Pre-fill from next flight */}
+      {nextFlight && !prefilledFrom && (
+        <TouchableOpacity
+          style={[styles.prefillCard, { backgroundColor: c.primary + '14', borderColor: c.primary }]}
+          onPress={handlePrefill}
+          activeOpacity={0.7}>
+          <Text style={[styles.prefillText, { color: c.primary }]}>
+            ✈️ Use my next flight: {nextFlight.flightIata} ({nextFlight.dep.iata} → {nextFlight.arr.iata})
+          </Text>
+          <Text style={[styles.prefillTime, { color: c.primary }]}>
+            Departs {formatISOTime(nextFlight.dep.scheduledTime)}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {prefilledFrom && (
+        <View style={[styles.prefillBadge, { backgroundColor: '#10B98118' }]}>
+          <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '700' }}>
+            ✅ Pre-filled from {prefilledFrom}
+          </Text>
+        </View>
+      )}
 
       {/* Flight number */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Flight Number (optional)</Text>
+      <View style={[styles.card, { backgroundColor: c.card }]}>
+        <Text style={[styles.label, { color: c.text }]}>Flight Number (optional)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { borderColor: c.border, color: c.text }]}
           placeholder="e.g. 6E 204, AI 101"
-          placeholderTextColor={colors.textSecondary}
+          placeholderTextColor={c.textSecondary}
           value={flightNum}
           onChangeText={setFlightNum}
           autoCapitalize="characters"
@@ -145,99 +243,103 @@ export function LeaveByScreen() {
       </View>
 
       {/* Departure time */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Departure Time</Text>
+      <View style={[styles.card, { backgroundColor: c.card }]}>
+        <Text style={[styles.label, { color: c.text }]}>Departure Time</Text>
         <View style={styles.timeRow}>
           <TextInput
-            style={[styles.input, styles.timeInput]}
+            style={[styles.input, styles.timeInput, { borderColor: c.border, color: c.text }]}
             placeholder="HH"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={c.textSecondary}
             value={departureHour}
             onChangeText={setDepartureHour}
             keyboardType="number-pad"
             maxLength={2}
           />
-          <Text style={styles.timeSep}>:</Text>
+          <Text style={[styles.timeSep, { color: c.text }]}>:</Text>
           <TextInput
-            style={[styles.input, styles.timeInput]}
+            style={[styles.input, styles.timeInput, { borderColor: c.border, color: c.text }]}
             placeholder="MM"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={c.textSecondary}
             value={departureMin}
             onChangeText={setDepartureMin}
             keyboardType="number-pad"
             maxLength={2}
           />
           <TouchableOpacity
-            style={[styles.ampmBtn, isAM && styles.ampmActive]}
-            onPress={() => setIsAM(true)}
-          >
-            <Text style={[styles.ampmText, isAM && styles.ampmTextActive]}>AM</Text>
+            style={[styles.ampmBtn, { borderColor: c.border }, isAM && { backgroundColor: c.primary, borderColor: c.primary }]}
+            onPress={() => setIsAM(true)}>
+            <Text style={[styles.ampmText, { color: c.textSecondary }, isAM && { color: '#fff' }]}>AM</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.ampmBtn, !isAM && styles.ampmActive]}
-            onPress={() => setIsAM(false)}
-          >
-            <Text style={[styles.ampmText, !isAM && styles.ampmTextActive]}>PM</Text>
+            style={[styles.ampmBtn, { borderColor: c.border }, !isAM && { backgroundColor: c.primary, borderColor: c.primary }]}
+            onPress={() => setIsAM(false)}>
+            <Text style={[styles.ampmText, { color: c.textSecondary }, !isAM && { color: '#fff' }]}>PM</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Travel time */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Travel Time to Airport (minutes)</Text>
+      <View style={[styles.card, { backgroundColor: c.card }]}>
+        <Text style={[styles.label, { color: c.text }]}>Travel Time to Airport (minutes)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { borderColor: c.border, color: c.text }]}
           placeholder="e.g. 45"
-          placeholderTextColor={colors.textSecondary}
+          placeholderTextColor={c.textSecondary}
           value={travelMins}
           onChangeText={setTravelMins}
           keyboardType="number-pad"
         />
-        <Text style={styles.hint}>
-          💡 Check Google Maps for current traffic estimate
-        </Text>
+        <TouchableOpacity onPress={openGoogleMaps} activeOpacity={0.7}>
+          <Text style={[styles.hint, { color: c.primary }]}>
+            📍 Open Google Maps for directions{depAirportIata ? ` to ${depAirportIata}` : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Toggles */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: c.card }]}>
         <View style={styles.toggleRow}>
           <View style={styles.toggleInfo}>
-            <Text style={styles.toggleLabel}>International Flight</Text>
-            <Text style={styles.toggleDesc}>90 min check-in vs 60 min domestic</Text>
+            <Text style={[styles.toggleLabel, { color: c.text }]}>International Flight</Text>
+            <Text style={[styles.toggleDesc, { color: c.textSecondary }]}>90 min check-in vs 60 min domestic</Text>
           </View>
           <Switch
             value={isInternational}
             onValueChange={setIsInternational}
-            trackColor={{ true: colors.primary }}
-            thumbColor={colors.white}
+            trackColor={{ true: c.primary }}
+            thumbColor="#fff"
           />
         </View>
         <View style={[styles.toggleRow, { marginTop: 16 }]}>
           <View style={styles.toggleInfo}>
-            <Text style={styles.toggleLabel}>Checking in Baggage</Text>
-            <Text style={styles.toggleDesc}>No baggage = 20 min saved at counter</Text>
+            <Text style={[styles.toggleLabel, { color: c.text }]}>Checking in Baggage</Text>
+            <Text style={[styles.toggleDesc, { color: c.textSecondary }]}>No baggage = 20 min saved at counter</Text>
           </View>
           <Switch
             value={hasBaggage}
             onValueChange={setHasBaggage}
-            trackColor={{ true: colors.primary }}
-            thumbColor={colors.white}
+            trackColor={{ true: c.primary }}
+            thumbColor="#fff"
           />
         </View>
       </View>
 
-      <TouchableOpacity style={styles.calcBtn} onPress={calculate}>
+      <TouchableOpacity style={[styles.calcBtn, { backgroundColor: c.primary }]} onPress={calculate}>
         <Text style={styles.calcBtnText}>Calculate →</Text>
       </TouchableOpacity>
 
       {/* Result */}
       {result && (
-        <View style={[styles.resultCard, countdownUrgent && styles.resultCardUrgent]}>
+        <View style={[styles.resultCard, countdownUrgent && styles.resultCardUrgent, !countdownUrgent && { backgroundColor: c.primary }]}>
           <Text style={styles.resultLeaveLabel}>Leave home by</Text>
           <Text style={styles.resultLeaveTime}>{formatTime(result.leaveByTime)}</Text>
-          <Text style={[styles.countdown, countdownUrgent && styles.countdownUrgent]}>
+          <Text style={[styles.countdownText, countdownUrgent && styles.countdownUrgent]}>
             {countdown}
           </Text>
+
+          <View style={styles.reminderBadge}>
+            <Text style={styles.reminderText}>🔔 Reminder set for 15 min before</Text>
+          </View>
 
           <View style={styles.divider} />
 
@@ -267,6 +369,11 @@ export function LeaveByScreen() {
             ✈️ Departs at {formatTime(result.departureTime)}
           </Text>
 
+          {/* Google Maps button in result */}
+          <TouchableOpacity style={styles.mapsBtn} onPress={openGoogleMaps}>
+            <Text style={styles.mapsBtnText}>📍 Navigate to Airport</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.resetBtn} onPress={reset}>
             <Text style={styles.resetBtnText}>Calculate Again</Text>
           </TouchableOpacity>
@@ -277,12 +384,30 @@ export function LeaveByScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
-  heading: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  subheading: { fontSize: 14, color: colors.textSecondary, marginBottom: 20 },
+  heading: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+  subheading: { fontSize: 14, marginBottom: 20 },
+
+  // Prefill
+  prefillCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 16,
+    marginBottom: 16,
+  },
+  prefillText: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  prefillTime: { fontSize: 12 },
+  prefillBadge: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+
+  // Card
   card: {
-    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 14,
@@ -292,73 +417,85 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 3,
   },
-  label: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 10 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
   input: {
     borderWidth: 1.5,
-    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: colors.text,
   },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
+  hint: { fontSize: 12, marginTop: 8, fontWeight: '600' },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timeInput: { flex: 1, textAlign: 'center' },
-  timeSep: { fontSize: 22, fontWeight: '700', color: colors.text },
+  timeSep: { fontSize: 22, fontWeight: '700' },
   ampmBtn: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: colors.border,
   },
-  ampmActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ampmText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
-  ampmTextActive: { color: colors.white },
+  ampmText: { fontSize: 14, fontWeight: '700' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   toggleInfo: { flex: 1, marginRight: 12 },
-  toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
-  toggleDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  toggleLabel: { fontSize: 14, fontWeight: '700' },
+  toggleDesc: { fontSize: 12, marginTop: 2 },
   calcBtn: {
-    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 20,
     elevation: 2,
   },
-  calcBtnText: { color: colors.white, fontSize: 17, fontWeight: '800' },
+  calcBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+
+  // Result
   resultCard: {
-    backgroundColor: colors.primary,
     borderRadius: 16,
     padding: 24,
     elevation: 4,
   },
-  resultCardUrgent: { backgroundColor: colors.error },
+  resultCardUrgent: { backgroundColor: '#EF4444' },
   resultLeaveLabel: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 4 },
-  resultLeaveTime: { fontSize: 52, fontWeight: '800', color: colors.white, lineHeight: 58 },
-  countdown: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 4, marginBottom: 20 },
+  resultLeaveTime: { fontSize: 52, fontWeight: '800', color: '#fff', lineHeight: 58 },
+  countdownText: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 4, marginBottom: 12 },
   countdownUrgent: { fontWeight: '700' },
+  reminderBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  reminderText: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 16 },
   breakdownTitle: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '600', marginBottom: 10 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   breakdownLabel: { fontSize: 14, color: 'rgba(255,255,255,0.85)' },
-  breakdownValue: { fontSize: 14, fontWeight: '700', color: colors.white },
+  breakdownValue: { fontSize: 14, fontWeight: '700', color: '#fff' },
   breakdownTotal: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.2)',
     paddingTop: 10,
     marginTop: 4,
   },
-  totalLabel: { fontSize: 14, fontWeight: '800', color: colors.white },
-  totalValue: { fontSize: 14, fontWeight: '800', color: colors.white },
-  depTime: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 16, marginBottom: 16 },
-  resetBtn: {
+  totalLabel: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  totalValue: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  depTime: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 16, marginBottom: 12 },
+  mapsBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    marginBottom: 10,
   },
-  resetBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  mapsBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  resetBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  resetBtnText: { color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: 14 },
 });

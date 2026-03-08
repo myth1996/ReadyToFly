@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getOrCreateUser, isPremiumActive } from '../services/UserService';
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -18,11 +19,27 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPremiumUser] = useState(false);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(currentUser => {
+    const unsubscribe = auth().onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
+
+      if (currentUser) {
+        // Fetch or create Firestore user doc → check premium status
+        try {
+          const userDoc = await getOrCreateUser(
+            currentUser.uid,
+            currentUser.phoneNumber ?? '',
+          );
+          setIsPremiumUser(isPremiumActive(userDoc));
+        } catch (_) {
+          setIsPremiumUser(false);
+        }
+      } else {
+        setIsPremiumUser(false);
+      }
+
       setLoading(false);
     });
     return unsubscribe;
