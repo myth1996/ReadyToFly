@@ -135,10 +135,32 @@ async function cancelFlightNotifications(flightIata: string): Promise<void> {
     `leaveby-${flightIata}`,
     `dep-2h-${flightIata}`,
     `dep-30m-${flightIata}`,
+    `postflight-${flightIata}`,
   ];
   for (const id of ids) {
     try { await notifee.cancelNotification(id); } catch (_) { /* ignore */ }
   }
+}
+
+// ─── Post-Flight Re-Engagement ─────────────────────────────────────────────────
+// Fires 5 hours after the flight's scheduled departure time.
+// Encourages the user to review the trip / open the app.
+
+async function schedulePostFlightReEngagement(opts: {
+  flightIata: string;
+  departureTime: string; // ISO string
+  arrIata: string;
+}): Promise<void> {
+  const depMs  = new Date(opts.departureTime).getTime();
+  const fireMs = depMs + 5 * 60 * 60 * 1000; // +5 hours
+
+  await scheduleAt({
+    id: `postflight-${opts.flightIata}`,
+    title: `✅ You've landed in ${opts.arrIata}!`,
+    body: `Hope your flight was smooth. Tap to plan your next trip or explore travel deals.`,
+    fireDate: new Date(fireMs),
+    channel: CHANNEL_REMINDERS,
+  });
 }
 
 // ─── Cancel All ────────────────────────────────────────────────────────────────
@@ -155,6 +177,7 @@ export const notificationService = {
   scheduleAt,
   scheduleLeaveByReminder,
   scheduleDepartureReminders,
+  schedulePostFlightReEngagement,
   cancelFlightNotifications,
   cancelAll,
 };

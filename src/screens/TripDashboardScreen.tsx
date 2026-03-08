@@ -23,6 +23,14 @@ import { HomeStackParamList } from '../navigation/HomeStack';
 import { haptic } from '../services/HapticService';
 import { fetchWeatherForAirport, WeatherResult } from '../services/WeatherService';
 import { AIRPORTS } from '../data/airports';
+import {
+  NativeAd,
+  NativeAdView,
+  NativeAsset,
+  NativeAssetType,
+} from 'react-native-google-mobile-ads';
+import { AD_UNIT_IDS } from '../services/AdService';
+import { AdGuard } from '../services/AdGuard';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'TripDashboard'>;
 
@@ -129,10 +137,79 @@ const mStyles = StyleSheet.create({
   dateText: { fontSize: 11, color: '#9CA3AF' },
 });
 
+// ─── Sponsored Mini Card (Native Ad) ─────────────────────────────────────────
+// Renders at position 2 in the "Other Trips" horizontal scroll.
+// Styled to match MiniFlightCard. Loads asynchronously; hidden until ready.
+
+function SponsoredMiniCard({ visible }: { visible: boolean }) {
+  const [nativeAd, setNativeAd] = useState<NativeAd | null>(null);
+
+  useEffect(() => {
+    if (!visible) { return; }
+    let cancelled = false;
+    NativeAd.createForAdRequest(AD_UNIT_IDS.NATIVE)
+      .then(ad => { if (!cancelled) { setNativeAd(ad); } })
+      .catch(() => {}); // silent fail
+    return () => { cancelled = true; };
+  }, [visible]);
+
+  if (!nativeAd) { return null; }
+
+  return (
+    <NativeAdView nativeAd={nativeAd} style={spStyles.card}>
+      <View style={spStyles.sponsorRow}>
+        <Text style={spStyles.sponsorLabel}>Sponsored</Text>
+        {nativeAd.advertiser ? (
+          <NativeAsset assetType={NativeAssetType.ADVERTISER}>
+            <Text style={spStyles.advertiser} numberOfLines={1}>{nativeAd.advertiser}</Text>
+          </NativeAsset>
+        ) : null}
+      </View>
+      <NativeAsset assetType={NativeAssetType.HEADLINE}>
+        <Text style={spStyles.headline} numberOfLines={2}>{nativeAd.headline}</Text>
+      </NativeAsset>
+      {nativeAd.body ? (
+        <NativeAsset assetType={NativeAssetType.BODY}>
+          <Text style={spStyles.body} numberOfLines={2}>{nativeAd.body}</Text>
+        </NativeAsset>
+      ) : null}
+      <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
+        <View style={spStyles.ctaBtn}>
+          <Text style={spStyles.ctaTxt}>{nativeAd.callToAction}</Text>
+        </View>
+      </NativeAsset>
+    </NativeAdView>
+  );
+}
+
+const spStyles = StyleSheet.create({
+  card: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 16,
+    marginRight: 14,
+    width: 230,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  sponsorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  sponsorLabel: { fontSize: 9, fontWeight: '800', color: '#2563EB', textTransform: 'uppercase', letterSpacing: 0.8, backgroundColor: '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  advertiser: { flex: 1, fontSize: 11, color: '#3B82F6', fontWeight: '600' },
+  headline: { fontSize: 14, fontWeight: '800', color: '#1E3A5F', marginBottom: 6, lineHeight: 19 },
+  body: { fontSize: 12, color: '#4B5563', lineHeight: 17, marginBottom: 10 },
+  ctaBtn: { backgroundColor: '#2563EB', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  ctaTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function TripDashboardScreen() {
-  const { user } = useAuth();
+  const { user, isPremiumUser } = useAuth();
   const { themeColors: c, t } = useSettings();
   const { flights, nextFlight, removeFlight, refreshAllFlights, isRefreshing } = useFlights();
   const navigation = useNavigation<NavProp>();
@@ -513,13 +590,20 @@ export function TripDashboardScreen() {
             contentContainerStyle={styles.miniCardsRow}>
             {otherFlights.map((flight, i) => {
               const idx = flights.indexOf(flight);
+              const showNativeAdHere =
+                i === 2 &&
+                otherFlights.length >= 2 &&
+                !isPremiumUser &&
+                AdGuard.canShowAd(isPremiumUser, nextFlight);
               return (
-                <MiniFlightCard
-                  key={idx}
-                  flight={flight}
-                  onRemove={() => removeFlight(idx)}
-                  fadeIn={miniFades[idx] ?? new Animated.Value(1)}
-                />
+                <React.Fragment key={idx}>
+                  {showNativeAdHere && <SponsoredMiniCard visible={showNativeAdHere} />}
+                  <MiniFlightCard
+                    flight={flight}
+                    onRemove={() => removeFlight(idx)}
+                    fadeIn={miniFades[idx] ?? new Animated.Value(1)}
+                  />
+                </React.Fragment>
               );
             })}
           </ScrollView>

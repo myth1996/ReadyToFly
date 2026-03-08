@@ -16,6 +16,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme';
 import { useFlights } from '../context/FlightsContext';
+import { useAuth } from '../context/AuthContext';
 import {
   FlightData,
   lookupFlight,
@@ -24,6 +25,8 @@ import {
   statusLabel,
   statusColor,
 } from '../services/FlightService';
+import { adService } from '../services/AdService';
+import { AdGuard } from '../services/AdGuard';
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -160,7 +163,8 @@ function getPnrUrl(flightNum: string): string {
 
 export function AddFlightScreen() {
   const navigation = useNavigation<any>();
-  const { addFlight } = useFlights();
+  const { addFlight, nextFlight } = useFlights();
+  const { isPremiumUser } = useAuth();
 
   const [pnr, setPnr] = useState('');
   const [flightNum, setFlightNum] = useState('');
@@ -237,6 +241,12 @@ export function AddFlightScreen() {
   const handleSave = () => {
     if (!pendingFlight) { return; }
     addFlight(pendingFlight);
+    // Show interstitial after save animation (800ms delay for UX smoothness)
+    // Guarded by 8-minute cooldown + AdGuard flight-window check
+    setTimeout(() => {
+      const canShow = AdGuard.canShowAd(isPremiumUser, nextFlight);
+      adService.showInterstitialAfterSave(canShow).catch(() => {});
+    }, 800);
     navigation.goBack();
   };
 

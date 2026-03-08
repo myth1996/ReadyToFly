@@ -11,19 +11,54 @@ import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { lightColors } from './src/theme';
 import { notificationService } from './src/services/NotificationService';
 import { smsImportService } from './src/services/SmsImportService';
+import { adService } from './src/services/AdService';
+import { AdGuard } from './src/services/AdGuard';
+import { AdsConsent, AdsConsentStatus } from 'react-native-google-mobile-ads';
 
 const GMAIL_ASKED_KEY = 'flyeasy_gmail_asked';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, isPremiumUser } = useAuth();
   const { themeColors: c } = useSettings();
-  const { addFlight } = useFlights();
+  const { addFlight, nextFlight } = useFlights();
   const prevUidRef = useRef<string | null>(null);
 
   // Set up notification channels once on app start
   useEffect(() => {
     notificationService.setup().catch(() => {});
   }, []);
+
+  // ── UMP Consent (GDPR / ePrivacy for EU/UK/Gulf) ─────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const consentInfo = await AdsConsent.requestInfoUpdate();
+        // Show form only if required (EU, UK, Gulf EEA-equivalent)
+        if (
+          consentInfo.isConsentFormAvailable &&
+          consentInfo.status === AdsConsentStatus.REQUIRED
+        ) {
+          await AdsConsent.showForm();
+        }
+      } catch (_) {
+        // Consent failure is non-fatal — continue with non-personalised ads
+      }
+    })();
+  }, []);
+
+  // ── App Open Ad (cold launch, once per day) ────────────────────────────────
+  useEffect(() => {
+    if (!user) { return; }
+    // Pre-load immediately after user is resolved
+    adService.preloadAppOpen();
+    // Show after a 1-second delay (let the dashboard render first)
+    const timer = setTimeout(() => {
+      const canShow = AdGuard.canShowAd(isPremiumUser, nextFlight);
+      adService.showAppOpenIfReady(canShow).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) {

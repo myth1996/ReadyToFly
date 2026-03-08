@@ -21,9 +21,7 @@ export function HomeScreen() {
   const { t, themeColors: c } = useSettings();
   const navigation = useNavigation<NavProp>();
 
-  useEffect(() => {
-    adService.onScreenView(isPremiumUser);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // (Screen view tracking removed — interstitials now fire on explicit triggers only)
 
   const cards = [
     {

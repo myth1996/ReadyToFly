@@ -113,6 +113,12 @@ export function FlightsProvider({ children }: { children: React.ReactNode }) {
         terminal: flight.dep.terminal,
         gate: flight.arr.gate,
       }).catch(() => {});
+      // Schedule post-flight re-engagement (5h after departure)
+      notificationService.schedulePostFlightReEngagement({
+        flightIata: flight.flightIata,
+        departureTime: flight.dep.scheduledTime,
+        arrIata: flight.arr.iata,
+      }).catch(() => {});
     }
   }, []);
 

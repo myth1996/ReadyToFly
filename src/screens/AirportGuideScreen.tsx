@@ -5,15 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  Animated,
+  Modal,
   LayoutAnimation,
   Platform,
   UIManager,
+  Dimensions,
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
+import { useFlights } from '../context/FlightsContext';
 import { adService } from '../services/AdService';
+import { AdGuard } from '../services/AdGuard';
 import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -317,67 +320,159 @@ const AIRPORTS: AirportInfo[] = [
   },
 ];
 
-export function AirportGuideScreen() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const { isPremiumUser } = useAuth();
-  const { themeColors: c } = useSettings();
+const { width: SCREEN_W } = Dimensions.get('window');
 
+export function AirportGuideScreen() {
+  const [selected, setSelected]           = useState<string | null>(null);
+  const [pendingCode, setPendingCode]     = useState<string | null>(null); // awaiting ad
+  const [rewardSheetVisible, setRewardSheetVisible] = useState(false);
+
+  const { isPremiumUser }   = useAuth();
+  const { themeColors: c }  = useSettings();
+  const { nextFlight }      = useFlights();
+  const navigation          = useNavigation<any>();
+
+  // Collapse when navigating away
   useEffect(() => {
-    adService.onScreenView(isPremiumUser);
-  }, [isPremiumUser]);
+    const unsub = navigation.addListener('blur', () => setSelected(null));
+    return unsub;
+  }, [navigation]);
 
   const handleAirportPress = (code: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // Collapsing — always allow
     if (selected === code) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setSelected(null);
       return;
     }
-    setSelected(code);
+
+    // Premium users: expand immediately
+    if (isPremiumUser) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setSelected(code);
+      return;
+    }
+
+    // Check ad guard — suppress within 2h of departure
+    const canShow = AdGuard.canShowAd(isPremiumUser, nextFlight);
+    if (!canShow) {
+      // No ads near departure — expand freely
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setSelected(code);
+      return;
+    }
+
+    // Check if rewarded ad is ready
+    if (!adService.isRewardedReady()) {
+      // Silent fallback — never block the user
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setSelected(code);
+      return;
+    }
+
+    // Show the reward bottom-sheet
+    setPendingCode(code);
+    setRewardSheetVisible(true);
+  };
+
+  const handleWatchAd = () => {
+    setRewardSheetVisible(false);
+    adService.showRewardedForAirportGuide(
+      false, // already checked not premium above
+      () => {
+        // Rewarded: expand the card
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSelected(pendingCode);
+        setPendingCode(null);
+      },
+      () => {
+        // Failed silently — show content anyway
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSelected(pendingCode);
+        setPendingCode(null);
+      },
+    );
+  };
+
+  const handleDismissSheet = () => {
+    setRewardSheetVisible(false);
+    setPendingCode(null);
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.background }]}
-      contentContainerStyle={styles.content}>
-      <Text style={[styles.heading, { color: c.text }]}>Airport Guide</Text>
-      <Text style={[styles.subheading, { color: c.textSecondary }]}>
-        35 Indian Airports — tap any card to expand
-      </Text>
+    <>
+      <ScrollView
+        style={[styles.container, { backgroundColor: c.background }]}
+        contentContainerStyle={styles.content}>
+        <Text style={[styles.heading, { color: c.text }]}>Airport Guide</Text>
+        <Text style={[styles.subheading, { color: c.textSecondary }]}>
+          35 Indian Airports — tap any card to expand
+        </Text>
 
-      {AIRPORTS.map(airport => {
-        const isExpanded = selected === airport.code;
-        return (
-          <View key={airport.code}>
-            <TouchableOpacity
-              style={[styles.row, { backgroundColor: c.card }, isExpanded && { borderColor: c.primary, borderWidth: 2 }]}
-              onPress={() => handleAirportPress(airport.code)}
-              activeOpacity={0.75}>
-              <View style={[styles.codeBox, { backgroundColor: c.primary }]}>
-                <Text style={styles.code}>{airport.code}</Text>
-              </View>
-              <View style={styles.info}>
-                <Text style={[styles.city, { color: c.text }]}>{airport.city}</Text>
-                <Text style={[styles.airportName, { color: c.textSecondary }]}>{airport.name}</Text>
-              </View>
-              <Text style={[styles.arrow, { color: c.primary }]}>
-                {isExpanded ? '▼' : '▶'}
-              </Text>
-            </TouchableOpacity>
+        {AIRPORTS.map(airport => {
+          const isExpanded = selected === airport.code;
+          return (
+            <View key={airport.code}>
+              <TouchableOpacity
+                style={[styles.row, { backgroundColor: c.card }, isExpanded && { borderColor: c.primary, borderWidth: 2 }]}
+                onPress={() => handleAirportPress(airport.code)}
+                activeOpacity={0.75}>
+                <View style={[styles.codeBox, { backgroundColor: c.primary }]}>
+                  <Text style={styles.code}>{airport.code}</Text>
+                </View>
+                <View style={styles.info}>
+                  <Text style={[styles.city, { color: c.text }]}>{airport.city}</Text>
+                  <Text style={[styles.airportName, { color: c.textSecondary }]}>{airport.name}</Text>
+                </View>
+                <Text style={[styles.arrow, { color: c.primary }]}>
+                  {isExpanded ? '▼' : '▶'}
+                </Text>
+              </TouchableOpacity>
 
-            {/* Expandable content */}
-            {isExpanded && (
-              <View style={[styles.expandCard, { backgroundColor: c.card, borderColor: c.primary }]}>
-                <InfoRow emoji="🏛️" label="Terminals" value={airport.terminals} textColor={c.text} subColor={c.textSecondary} />
-                <InfoRow emoji="🛋️" label="Lounges" value={airport.lounges} textColor={c.text} subColor={c.textSecondary} />
-                <InfoRow emoji="🚗" label="Transport" value={airport.transport} textColor={c.text} subColor={c.textSecondary} />
-                <InfoRow emoji="📶" label="Wi-Fi" value={airport.wifi} textColor={c.text} subColor={c.textSecondary} />
-                <InfoRow emoji="📞" label="Helpline" value={airport.helpline} textColor={c.text} subColor={c.textSecondary} />
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </ScrollView>
+              {/* Expandable content */}
+              {isExpanded && (
+                <View style={[styles.expandCard, { backgroundColor: c.card, borderColor: c.primary }]}>
+                  <InfoRow emoji="🏛️" label="Terminals" value={airport.terminals} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🛋️" label="Lounges" value={airport.lounges} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🚗" label="Transport" value={airport.transport} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="📶" label="Wi-Fi" value={airport.wifi} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="📞" label="Helpline" value={airport.helpline} textColor={c.text} subColor={c.textSecondary} />
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {/* ── Rewarded Ad Bottom Sheet ──────────────────────────────────────── */}
+      <Modal
+        visible={rewardSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleDismissSheet}>
+        <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={handleDismissSheet} />
+        <View style={[styles.sheet, { backgroundColor: c.card }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetEmoji}>✈️</Text>
+          <Text style={[styles.sheetTitle, { color: c.text }]}>Unlock Airport Details</Text>
+          <Text style={[styles.sheetBody, { color: c.textSecondary }]}>
+            Watch a short ad to unlock terminal, lounge &amp; transport info for this airport — or go Premium for instant access everywhere.
+          </Text>
+          <TouchableOpacity style={[styles.watchBtn, { backgroundColor: c.primary }]} onPress={handleWatchAd}>
+            <Text style={styles.watchBtnTxt}>▶  Watch Ad to Unlock</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.premiumBtn, { borderColor: c.primary }]} onPress={() => {
+            handleDismissSheet();
+            navigation.navigate('Premium');
+          }}>
+            <Text style={[styles.premiumBtnTxt, { color: c.primary }]}>👑  Get Premium — No Ads Ever</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleDismissSheet}>
+            <Text style={[styles.cancelTxt, { color: c.textSecondary }]}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -400,6 +495,25 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   heading: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
   subheading: { fontSize: 14, marginBottom: 20 },
+
+  // Rewarded bottom sheet
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 36,
+    alignItems: 'center',
+    width: SCREEN_W,
+  },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', marginBottom: 20 },
+  sheetEmoji: { fontSize: 40, marginBottom: 12 },
+  sheetTitle: { fontSize: 20, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  sheetBody: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 20, paddingHorizontal: 8 },
+  watchBtn: { borderRadius: 14, paddingVertical: 16, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginBottom: 10 },
+  watchBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  premiumBtn: { borderRadius: 14, borderWidth: 2, paddingVertical: 14, paddingHorizontal: 24, width: '100%', alignItems: 'center', marginBottom: 10 },
+  premiumBtnTxt: { fontWeight: '800', fontSize: 15 },
+  cancelBtn: { paddingVertical: 10 },
+  cancelTxt: { fontSize: 13 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

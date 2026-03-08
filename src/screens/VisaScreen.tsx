@@ -1,10 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Linking, Alert, LayoutAnimation, Platform, UIManager,
+  TextInput, Linking, Alert, LayoutAnimation, Platform, UIManager, Dimensions,
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
+import { useAuth } from '../context/AuthContext';
+import { useFlights } from '../context/FlightsContext';
+import { AdGuard } from '../services/AdGuard';
+import { adService } from '../services/AdService';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { VISA_REQUIREMENTS, STATUS_LABEL, VisaStatus } from '../data/visaRequirements';
+
+const SCREEN_W = Dimensions.get('window').width;
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -27,9 +34,14 @@ const FILTER_OPTIONS: { label: string; value: VisaStatus | 'all' }[] = [
 
 export function VisaScreen() {
   const { themeColors: c } = useSettings();
+  const { isPremiumUser } = useAuth();
+  const { nextFlight } = useFlights();
   const [filter, setFilter] = useState<VisaStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Show banner only when: not premium, card not expanded, not near departure
+  const showBanner = !isPremiumUser && !expanded && AdGuard.canShowAd(isPremiumUser, nextFlight);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -50,9 +62,10 @@ export function VisaScreen() {
   const evisaCount = VISA_REQUIREMENTS.filter(v => v.status === 'evisa').length;
 
   return (
+    <View style={[styles.screenWrap, { backgroundColor: c.background }]}>
     <ScrollView
-      style={[styles.container, { backgroundColor: c.background }]}
-      contentContainerStyle={styles.content}
+      style={styles.container}
+      contentContainerStyle={[styles.content, showBanner && { paddingBottom: 70 }]}
       showsVerticalScrollIndicator={false}>
 
       {/* Header */}
@@ -181,12 +194,33 @@ export function VisaScreen() {
         <Text style={[styles.empty, { color: c.textSecondary }]}>No results for "{search}"</Text>
       )}
     </ScrollView>
+
+    {/* Sticky adaptive banner — collapses when card is expanded */}
+    {showBanner && (
+      <View style={styles.bannerContainer}>
+        <BannerAd
+          unitId={adService.getBannerUnitId()}
+          size={BannerAdSize.ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        />
+      </View>
+    )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenWrap: { flex: 1 },
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
+  bannerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: SCREEN_W,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
   heading: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
   subheading: { fontSize: 14, marginBottom: 16 },
 
