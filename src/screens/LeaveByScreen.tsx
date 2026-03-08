@@ -14,6 +14,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useFlights } from '../context/FlightsContext';
 import { formatISOTime } from '../services/FlightService';
 import { notificationService } from '../services/NotificationService';
+import { airportMapsQuery } from '../data/airports';
 
 // Buffer times in minutes
 const DOMESTIC_CHECKIN = 60;
@@ -22,27 +23,8 @@ const SECURITY_TIME = 30;
 const GATE_TIME = 20;
 const LOW_BUFFER_WARN = 30;
 
-// Airport name lookup for Google Maps
-const AIRPORT_NAMES: Record<string, string> = {
-  DEL: 'Indira Gandhi International Airport Delhi',
-  BOM: 'Chhatrapati Shivaji Maharaj International Airport Mumbai',
-  BLR: 'Kempegowda International Airport Bengaluru',
-  MAA: 'Chennai International Airport',
-  HYD: 'Rajiv Gandhi International Airport Hyderabad',
-  CCU: 'Netaji Subhas Chandra Bose International Airport Kolkata',
-  COK: 'Cochin International Airport Kochi',
-  PNQ: 'Pune International Airport',
-  AMD: 'Sardar Vallabhbhai Patel International Airport Ahmedabad',
-  GOI: 'Manohar International Airport Goa',
-  GAU: 'Lokpriya Gopinath Bordoloi Airport Guwahati',
-  JAI: 'Jaipur International Airport',
-  LKO: 'Chaudhary Charan Singh International Airport Lucknow',
-  IXC: 'Chandigarh International Airport',
-  PAT: 'Jay Prakash Narayan Airport Patna',
-  NAG: 'Dr. Babasaheb Ambedkar International Airport Nagpur',
-  VNS: 'Lal Bahadur Shastri Airport Varanasi',
-  IXR: 'Birsa Munda Airport Ranchi',
-};
+// Airport names are now sourced from src/data/airports.ts (covers all Indian
+// airports + 55+ international destinations for Indian travellers).
 
 type Result = {
   leaveByTime: Date;
@@ -122,7 +104,7 @@ export function LeaveByScreen() {
   };
 
   const openGoogleMaps = () => {
-    const airportName = AIRPORT_NAMES[depAirportIata] ?? `${depAirportIata} Airport India`;
+    const airportName = airportMapsQuery(depAirportIata);
     const url = `google.navigation:q=${encodeURIComponent(airportName)}`;
     Linking.canOpenURL(url).then(supported => {
       if (supported) {
