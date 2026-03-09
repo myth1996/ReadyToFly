@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, View, ActivityIndicator, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { FlightsProvider, useFlights } from './src/context/FlightsContext';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
+import { OnboardingScreen, ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { lightColors } from './src/theme';
 import { notificationService } from './src/services/NotificationService';
 import { smsImportService } from './src/services/SmsImportService';
@@ -22,6 +23,14 @@ function AppContent() {
   const { themeColors: c } = useSettings();
   const { addFlight, nextFlight } = useFlights();
   const prevUidRef = useRef<string | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  // Check onboarding flag once on mount
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY).then(val => {
+      setOnboardingDone(val === 'true');
+    }).catch(() => setOnboardingDone(false));
+  }, []);
 
   // Set up notification channels once on app start
   useEffect(() => {
@@ -117,12 +126,16 @@ function AppContent() {
     checkSmsPrompt();
   }, [user?.uid, addFlight]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
+  if (loading || onboardingDone === null) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.primary }}>
         <ActivityIndicator size="large" color={lightColors.white} />
       </View>
     );
+  }
+
+  if (!onboardingDone) {
+    return <OnboardingScreen onDone={() => setOnboardingDone(true)} />;
   }
 
   return user ? <TabNavigator /> : <AuthNavigator />;

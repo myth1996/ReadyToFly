@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "Metro Bundler",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "npm", "start"],
       "port": 8081
     },
     {
       "name": "Android",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "android"],
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "npm", "run", "android"],
       "port": 8081
     }
   ]

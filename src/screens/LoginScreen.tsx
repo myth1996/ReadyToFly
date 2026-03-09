@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { colors } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 type Props = {
   onOtpSent: (confirmation: any, phone: string) => void;
@@ -20,6 +21,22 @@ type Props = {
 export function LoginScreen({ onOtpSent }: Props) {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { signInWithGoogle } = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      const msg = error.message ?? 'Google sign-in failed. Please try again.';
+      if (!msg.toLowerCase().includes('cancel')) {
+        Alert.alert('Sign-in Failed', msg);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSendOtp = async () => {
     const cleaned = phone.replace(/\s/g, '');
@@ -72,7 +89,7 @@ export function LoginScreen({ onOtpSent }: Props) {
           <TouchableOpacity
             style={[styles.btn, loading && styles.btnDisabled]}
             onPress={handleSendOtp}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             {loading ? (
               <ActivityIndicator color={colors.white} />
@@ -80,6 +97,33 @@ export function LoginScreen({ onOtpSent }: Props) {
               <Text style={styles.btnText}>Send OTP →</Text>
             )}
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Sign-In */}
+          <TouchableOpacity
+            style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={loading || googleLoading}
+            activeOpacity={0.85}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <>
+                <Text style={styles.googleG}>G</Text>
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.googleNote}>
+            Sign in with Gmail to auto-import your flight bookings
+          </Text>
         </View>
 
         <Text style={styles.footer}>
@@ -181,6 +225,52 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '700',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 18,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    paddingHorizontal: 4,
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 13,
+    backgroundColor: '#FAFAFA',
+  },
+  googleG: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#4285F4',
+    fontStyle: 'italic',
+  },
+  googleBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  googleNote: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 16,
   },
   footer: {
     marginTop: 24,
