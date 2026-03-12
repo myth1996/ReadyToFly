@@ -1,6 +1,8 @@
 {
-  "name": "FlyEasy",
-  "displayName": "FlyEasy",
+  "name": "ReadyToFly",
+  "displayName": "ReadyToFly",
+  "slug": "readytofly",
+  "scheme": "readytofly",
   "react-native-google-mobile-ads": {
     "android_app_id": "ca-app-pub-3940256099942544~3347511713"
   }

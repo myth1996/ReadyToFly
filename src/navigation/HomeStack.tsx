@@ -8,7 +8,10 @@ import {
   Switch,
   SafeAreaView,
   StatusBar,
+  ScrollView,
+  Linking,
 } from 'react-native';
+import { BRAND } from '../constants/brand';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { TripDashboardScreen } from '../screens/TripDashboardScreen';
@@ -25,6 +28,7 @@ import { BaggageRulesScreen } from '../screens/BaggageRulesScreen';
 import { PremiumScreen } from '../screens/PremiumScreen';
 import { FrequentFlyerScreen } from '../screens/FrequentFlyerScreen';
 import { VisaScreen } from '../screens/VisaScreen';
+import { SearchScreen } from '../screens/SearchScreen';
 
 export type HomeStackParamList = {
   TripDashboard: undefined;
@@ -36,12 +40,21 @@ export type HomeStackParamList = {
   Premium: undefined;
   FrequentFlyer: undefined;
   Visa: undefined;
+  Search: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
+
+// ─── Social links ─────────────────────────────────────────────────────────────────────────────
+const SOCIAL_LINKS = [
+  { icon: '𝕏', label: '@readytofly.in', platform: 'Twitter', url: BRAND.TWITTER },
+  { icon: '📸', label: '@readytofly.in', platform: 'Instagram', url: BRAND.INSTAGRAM },
+  { icon: '▶️', label: '@readytoflyapp', platform: 'YouTube', url: BRAND.YOUTUBE },
+  { icon: '👍', label: 'Ready To Fly', platform: 'Facebook', url: BRAND.FACEBOOK },
+] as const;
 // ─── Hamburger Menu ───────────────────────────────────────────────────────────
 function HamburgerButton() {
   const [visible, setVisible] = useState(false);
@@ -54,6 +67,7 @@ function HamburgerButton() {
     close();
     setTimeout(() => navigation.navigate(screen), 150);
   };
+  const openLink = (url: string) => Linking.openURL(url);
 
   return (
     <>
@@ -75,6 +89,7 @@ function HamburgerButton() {
             </TouchableOpacity>
           </View>
 
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={[styles.row, { borderBottomColor: c.border }]}>
             <Text style={styles.rowIcon}>🌙</Text>
             <Text style={[styles.rowLabel, { color: c.text }]}>{t.darkMode}</Text>
@@ -127,7 +142,29 @@ function HamburgerButton() {
             <Text style={[styles.rowChevron, { color: c.textSecondary }]}>›</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.version, { color: c.textSecondary }]}>{t.appVersion}</Text>
+            {/* ─── Follow Us ──────────────────────────────────────────────────────── */}
+            <View style={[styles.followDivider, { borderTopColor: c.border }]} />
+            <View style={styles.followHeader}>
+              <Text style={[styles.followTitle, { color: c.textSecondary }]}>FOLLOW US</Text>
+            </View>
+
+            {SOCIAL_LINKS.map(({ icon, label, platform, url }) => (
+              <TouchableOpacity
+                key={platform}
+                style={[styles.row, { borderBottomColor: c.border }]}
+                onPress={() => openLink(url)}
+                activeOpacity={0.7}>
+                <Text style={styles.rowIcon}>{icon}</Text>
+                <View style={styles.socialTextGroup}>
+                  <Text style={[styles.rowLabel, { color: c.text }]}>{platform}</Text>
+                  <Text style={[styles.socialHandle, { color: c.textSecondary }]}>{label}</Text>
+                </View>
+                <Text style={[styles.externalIcon, { color: c.textSecondary }]}>↗</Text>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={[styles.version, { color: c.textSecondary }]}>{t.appVersion}</Text>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </>
@@ -195,6 +232,11 @@ export function HomeStack() {
         options={{ headerTitle: '🌍 Visa Requirements' }}
       />
       <Stack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="PrivacyPolicy"
         component={PrivacyPolicyScreen}
         options={{ headerTitle: '🔒 Privacy Policy' }}
@@ -226,5 +268,12 @@ const styles = StyleSheet.create({
   langOptions: { gap: 8 },
   langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   langOptionText: { fontSize: 14, fontWeight: '500' },
-  version: { textAlign: 'center', fontSize: 12, marginTop: 'auto', paddingBottom: 24, paddingTop: 16 },
+  scrollContent: { flexGrow: 1 },
+  followDivider: { borderTopWidth: 1, marginTop: 4 },
+  followHeader: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  followTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
+  socialTextGroup: { flex: 1, gap: 2 },
+  socialHandle: { fontSize: 12, fontWeight: '400' },
+  externalIcon: { fontSize: 16, fontWeight: '400' },
+  version: { textAlign: 'center', fontSize: 12, paddingBottom: 24, paddingTop: 16 },
 });
