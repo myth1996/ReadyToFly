@@ -8,14 +8,21 @@ import { useSettings } from '../context/SettingsContext';
 import { purchasePremium, PLAN_DETAILS, PremiumPlan } from '../services/PaymentService';
 import { haptic } from '../services/HapticService';
 
-const FEATURES_LIST = [
-  { icon: '✈️', label: 'Unlimited flight tracking', free: '3 flights max', premium: 'Unlimited' },
-  { icon: '🚫', label: 'No advertisements', free: 'Ads shown', premium: 'Ad-free experience' },
-  { icon: '🔔', label: 'Priority flight alerts', free: 'Standard alerts', premium: 'Instant push alerts' },
-  { icon: '😌', label: 'Calm Mode', free: '🔒 Locked', premium: 'Full access' },
-  { icon: '📋', label: 'Doc Checklist templates', free: 'Basic', premium: 'Custom templates' },
-  { icon: '🗺️', label: 'Airport Guide', free: 'Full access', premium: 'Full access' },
-  { icon: '🧳', label: 'Baggage Rules', free: 'Full access', premium: 'Full access' },
+// Premium-only features (paywall)
+const PREMIUM_FEATURES = [
+  { icon: '🚫', label: 'Ad-free experience', free: 'Ads shown', premium: 'Completely ad-free' },
+  { icon: '✈️', label: 'Unlimited flight tracking', free: 'Up to 3 flights', premium: 'Track unlimited flights' },
+  { icon: '🔔', label: 'Instant push alerts', free: 'No alerts', premium: 'Real-time gate & delay alerts' },
+];
+
+// Free for ALL users — Calm Mode highlighted first
+const FREE_FEATURES = [
+  { icon: '😌', label: 'Calm Mode', desc: '4-7-8 breathing — always free', highlight: true },
+  { icon: '📋', label: 'Doc Checklist', desc: 'Passport, boarding pass & more', highlight: false },
+  { icon: '🧳', label: 'Baggage Rules', desc: 'Airline-wise allowances', highlight: false },
+  { icon: '🗺️', label: 'Airport Guide', desc: 'Maps, lounges & facilities', highlight: false },
+  { icon: '🌍', label: 'Visa Info', desc: 'Entry requirements by country', highlight: false },
+  { icon: '🏅', label: 'Frequent Flyer', desc: 'Track your loyalty programmes', highlight: false },
 ];
 
 export function PremiumScreen() {
@@ -46,12 +53,12 @@ export function PremiumScreen() {
           </Text>
         </View>
         <View style={[styles.featuresCard, { backgroundColor: c.card }]}>
-          {FEATURES_LIST.map(f => (
+          {PREMIUM_FEATURES.map(f => (
             <View key={f.label} style={[styles.featureRow, { borderBottomColor: c.border }]}>
               <Text style={styles.featureIcon}>{f.icon}</Text>
               <View style={styles.featureInfo}>
                 <Text style={[styles.featureLabel, { color: c.text }]}>{f.label}</Text>
-                <Text style={[styles.featureValue, { color: '#10B981' }]}>✓ {f.premium}</Text>
+                <Text style={[styles.featureValue, { color: '#10B981' }]}>{f.premium}</Text>
               </View>
             </View>
           ))}
@@ -72,25 +79,50 @@ export function PremiumScreen() {
         <Text style={styles.heroSubtitle}>Fly smarter. Worry less.</Text>
       </View>
 
-      {/* Feature comparison */}
+      {/* Premium-only benefits */}
+      <Text style={[styles.sectionLabel, { color: c.text }]}>What you unlock with Premium</Text>
       <View style={[styles.featuresCard, { backgroundColor: c.card }]}>
         <View style={styles.featureHeader}>
           <Text style={[styles.featureHeaderBlank, { color: c.text }]}>Feature</Text>
           <Text style={[styles.featureHeaderFree, { color: c.textSecondary }]}>Free</Text>
           <Text style={[styles.featureHeaderPremium, { color: c.primary }]}>Premium</Text>
         </View>
-        {FEATURES_LIST.map((f, i) => (
+        {PREMIUM_FEATURES.map((f, i) => (
           <View
             key={f.label}
             style={[
               styles.featureRow,
               { borderBottomColor: c.border },
-              i === FEATURES_LIST.length - 1 && { borderBottomWidth: 0 },
+              i === PREMIUM_FEATURES.length - 1 && { borderBottomWidth: 0 },
             ]}>
             <Text style={styles.featureIcon}>{f.icon}</Text>
             <Text style={[styles.featureLabel, { color: c.text }]}>{f.label}</Text>
-            <Text style={[styles.featureFree, { color: f.free.startsWith('🔒') ? '#EF4444' : c.textSecondary }]}>{f.free}</Text>
+            <Text style={[styles.featureFree, { color: c.textSecondary }]}>{f.free}</Text>
             <Text style={[styles.featurePremium, { color: '#10B981' }]}>✓ {f.premium}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Always-free features */}
+      <Text style={[styles.sectionLabel, { color: c.text }]}>Always free for everyone</Text>
+      <View style={[styles.featuresCard, { backgroundColor: c.card }]}>
+        {FREE_FEATURES.map((f, i) => (
+          <View
+            key={f.label}
+            style={[
+              styles.freeRow,
+              { borderBottomColor: c.border },
+              f.highlight && { backgroundColor: '#2D1B6914' },
+              i === FREE_FEATURES.length - 1 && { borderBottomWidth: 0 },
+            ]}>
+            <Text style={[styles.featureIcon, f.highlight && styles.featureIconHighlight]}>{f.icon}</Text>
+            <View style={styles.freeInfo}>
+              <Text style={[styles.freeLabel, { color: c.text }, f.highlight && styles.freeLabelHighlight]}>
+                {f.label}{f.highlight ? '  ⭐ Top Pick' : ''}
+              </Text>
+              <Text style={[styles.freeDesc, { color: c.textSecondary }]}>{f.desc}</Text>
+            </View>
+            <Text style={styles.freeTick}>✓</Text>
           </View>
         ))}
       </View>
@@ -205,8 +237,25 @@ const styles = StyleSheet.create({
   featurePremium: { fontSize: 11, flex: 1, textAlign: 'center', fontWeight: '700' },
   featureValue: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 
+  // Section label above tables
+  sectionLabel: {
+    fontSize: 12, fontWeight: '800', textTransform: 'uppercase',
+    letterSpacing: 0.9, marginHorizontal: 20, marginTop: 20, marginBottom: 8,
+  },
+  // Free features
+  freeRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  freeInfo: { flex: 1 },
+  freeLabel: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  freeLabelHighlight: { color: '#7C3AED', fontSize: 15 },
+  freeDesc: { fontSize: 12, lineHeight: 16 },
+  freeTick: { fontSize: 16, color: '#10B981', fontWeight: '800', marginLeft: 8 },
+  featureIconHighlight: { fontSize: 24 },
   // Plans
-  sectionTitle: { fontSize: 17, fontWeight: '800', marginHorizontal: 20, marginTop: 24, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', marginHorizontal: 20, marginTop: 20, marginBottom: 12 },
   planCard: {
     marginHorizontal: 20, marginBottom: 10,
     borderRadius: 14, borderWidth: 1.5,

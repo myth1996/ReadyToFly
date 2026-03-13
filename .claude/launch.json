@@ -4,14 +4,37 @@
     {
       "name": "Metro Bundler",
       "runtimeExecutable": "cmd.exe",
-      "runtimeArgs": ["/c", "npm", "start"],
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "start"
+      ],
       "port": 8081
     },
     {
       "name": "Android",
       "runtimeExecutable": "cmd.exe",
-      "runtimeArgs": ["/c", "npm", "run", "android"],
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "android"
+      ],
       "port": 8081
+    },
+    {
+      "name": "Website",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": [
+        "/c",
+        "npx",
+        "serve",
+        "website",
+        "-p",
+        "3456",
+        "--no-clipboard"
+      ],
+      "port": 3456
     }
   ]
 }

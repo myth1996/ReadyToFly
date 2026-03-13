@@ -89,8 +89,8 @@ android {
         applicationId "com.flyeasy"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "1.2.0"
+        versionCode 9
+        versionName "1.4.1"
         // Only build for physical device architectures — skips x86/x86_64 (emulator-only)
         // This cuts build time from ~5 min to ~1 min for USB debug builds
         ndk {

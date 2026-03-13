@@ -4,7 +4,6 @@ import {
   Animated, StatusBar, SafeAreaView,
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
-import { useAuth } from '../context/AuthContext';
 import { haptic } from '../services/HapticService';
 
 // ─── 4-7-8 Breathing phases ────────────────────────────────────────────────────
@@ -16,8 +15,6 @@ const PHASES = [
 
 export function CalmModeScreen() {
   const { themeColors: c, language } = useSettings();
-  const { isPremiumUser } = useAuth();
-
   const [running, setRunning] = useState(false);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(PHASES[0].duration);
@@ -104,30 +101,6 @@ export function CalmModeScreen() {
   };
 
   const phaseLabel = language === 'hi' ? phase.labelHi : phase.label;
-
-  // ── Premium gate ──────────────────────────────────────────────────────────
-  if (!isPremiumUser) {
-    return (
-      <View style={[styles.container, { backgroundColor: c.background }]}>
-        <View style={[styles.gateCard, { backgroundColor: c.card }]}>
-          <Text style={styles.gateEmoji}>😌</Text>
-          <Text style={[styles.gateTitle, { color: c.text }]}>Calm Mode is Premium</Text>
-          <Text style={[styles.gateDesc, { color: c.textSecondary }]}>
-            Guided 4-7-8 breathing exercises, ambient sounds, and a distraction-free space for anxious flyers.
-            Upgrade to Premium to unlock.
-          </Text>
-          <View style={[styles.gateFeaturesList, { backgroundColor: c.background }]}>
-            {['4-7-8 Breathing cycle timer', 'Visual breathing guide animation', 'Cycle counter to track progress', 'Do Not Disturb mode'].map(f => (
-              <Text key={f} style={[styles.gateFeatureItem, { color: c.text }]}>✓  {f}</Text>
-            ))}
-          </View>
-          <Text style={[styles.gateNote, { color: c.textSecondary }]}>
-            Navigate to the Premium screen via the hamburger menu → Upgrade to Premium
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   // ── Calm Mode ─────────────────────────────────────────────────────────────
   return (

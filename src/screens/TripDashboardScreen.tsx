@@ -303,7 +303,6 @@ export function TripDashboardScreen() {
   const quickTools = [
     { icon: '🕐', label: t.leaveByTitle,   onPress: () => navigation.navigate('LeaveBy') },
     { icon: '📋', label: t.docCheckTitle,  onPress: () => navigation.navigate('DocChecklist') },
-    { icon: '😌', label: t.calmModeTitle,  onPress: () => navigation.navigate('CalmMode') },
     { icon: '🧳', label: 'Baggage',        onPress: () => navigation.navigate('BaggageRules') },
     { icon: '🛠️', label: 'All Tools',     onPress: () => setShowAllTools(true) },
   ];
@@ -360,7 +359,7 @@ export function TripDashboardScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.headerIconBtn, { backgroundColor: c.card }]}
-            onPress={() => Alert.alert('Search', 'Flight search coming soon!')}
+            onPress={() => { haptic.impact(); navigation.navigate('Search'); }}
             activeOpacity={0.75}>
             <Text style={styles.headerIconEmoji}>🔍</Text>
           </TouchableOpacity>
@@ -575,7 +574,22 @@ export function TripDashboardScreen() {
         <Text style={styles.sosChevron}>›</Text>
       </TouchableOpacity>
 
-      {/* ── OTHER TRIPS ─────────────────────────────────────────────── */}
+      {/* ── CALM MODE BANNER ────────────────────────────────────── */}
+      <TouchableOpacity
+        style={styles.calmBanner}
+        onPress={() => { haptic.impact(); navigation.navigate('CalmMode'); }}
+        activeOpacity={0.85}>
+        <View style={styles.calmBannerLeft}>
+          <Text style={styles.calmBannerEmoji}>😌</Text>
+          <View>
+            <Text style={styles.calmBannerTitle}>Calm Mode</Text>
+            <Text style={styles.calmBannerDesc}>4-7-8 breathing for anxious flyers</Text>
+          </View>
+        </View>
+        <Text style={styles.calmBannerChevron}>›</Text>
+      </TouchableOpacity>
+
+            {/* ── OTHER TRIPS ─────────────────────────────────────────────── */}
       {otherFlights.length > 0 && (
         <>
           <View style={styles.sectionRow}>
@@ -883,6 +897,29 @@ const styles = StyleSheet.create({
   sosTitle: { fontSize: 15, fontWeight: '800', color: '#92400E' },
   sosSubtitle: { fontSize: 12, color: '#B45309', marginTop: 2 },
   sosChevron: { fontSize: 26, color: '#D97706', fontWeight: '300' },
+
+  // Calm Mode standalone banner
+  calmBanner: {
+    marginHorizontal: 20,
+    marginBottom: 28,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    backgroundColor: '#2D1B69',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#2D1B69',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  calmBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  calmBannerEmoji: { fontSize: 36 },
+  calmBannerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  calmBannerDesc: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
+  calmBannerChevron: { fontSize: 28, color: 'rgba(255,255,255,0.6)', fontWeight: '300' },
 
   // Add more button
   addMoreBtn: {
