@@ -31,8 +31,15 @@ import {
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
 
-function todayISO()    { return new Date().toISOString().slice(0, 10); }
-function tomorrowISO() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
+// IST-safe: toISOString() is UTC and flips to next day after 18:30 IST
+function todayISO(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+function tomorrowISO(): string {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function SkeletonCard({ opacity }: { opacity: Animated.Value }) {

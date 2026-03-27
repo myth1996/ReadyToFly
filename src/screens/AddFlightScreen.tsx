@@ -30,8 +30,17 @@ import { AdGuard } from '../services/AdGuard';
 
 type LookupState = 'idle' | 'loading' | 'success' | 'error';
 
-function todayISO()    { return new Date().toISOString().slice(0, 10); }
-function tomorrowISO() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
+// Use IST date so "Today" chip is correct after 6:30 PM (UTC would flip to next day)
+function todayIST(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+function tomorrowIST(): string {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+function todayISO()    { return todayIST(); }
+function tomorrowISO() { return tomorrowIST(); }
 
 // ─── Skeleton card ────────────────────────────────────────────────────────────
 

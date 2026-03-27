@@ -35,7 +35,7 @@ function HistoryCard({ flight, onPress }: {
   const arrCity = AIRPORTS[flight.arr.iata]?.city ?? flight.arr.iata;
   const depDate = flight.dep.scheduledTime
     ? new Date(flight.dep.scheduledTime).toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
+        day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata',
       })
     : '—';
   const depTime = formatISOTime(flight.dep.scheduledTime);
@@ -118,7 +118,7 @@ export function FlightHistoryScreen() {
     const map = new Map<string, typeof pastFlights>();
     pastFlights.forEach(f => {
       const d = new Date(f.dep.scheduledTime || Date.now());
-      const key = d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      const key = d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
       if (!map.has(key)) { map.set(key, []); }
       map.get(key)!.push(f);
     });

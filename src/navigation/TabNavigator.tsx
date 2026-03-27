@@ -2,9 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import { HomeStack } from './HomeStack';
+import { ServicesStack } from './ServicesStack';
 import { AirportGuideScreen } from '../screens/AirportGuideScreen';
 import { MyFlightsScreen } from '../screens/MyFlightsScreen';
-import { AlertsScreen } from '../screens/AlertsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { useSettings } from '../context/SettingsContext';
 
@@ -79,12 +79,14 @@ export function TabNavigator() {
         }}
       />
       <Tab.Screen
-        name="Alerts"
-        component={AlertsScreen}
+        name="Services"
+        component={ServicesStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🔔" focused={focused} />
+            <TabIcon emoji="🛫" focused={focused} />
           ),
+          tabBarLabel: 'Services',
+          headerShown: false,
         }}
       />
       <Tab.Screen
