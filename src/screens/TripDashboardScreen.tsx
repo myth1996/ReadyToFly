@@ -17,8 +17,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { useFlights, getCountdown } from '../context/FlightsContext';
+import { useFlights, getCountdown, effectiveDepTime } from '../context/FlightsContext';
 import { formatISOTime, statusLabel, statusColor, FlightData } from '../services/FlightService';
+import { getCheckInInfo } from '../services/NotificationService';
 import { HomeStackParamList } from '../navigation/HomeStack';
 import { haptic } from '../services/HapticService';
 import { fetchWeatherForAirport, WeatherResult } from '../services/WeatherService';
@@ -252,12 +253,15 @@ export function TripDashboardScreen() {
     ? user.phoneNumber.replace('+91', '')
     : null;
 
-  const countdown = nextFlight
-    ? getCountdown(nextFlight.dep.scheduledTime)
-    : null;
+  const effDep   = nextFlight ? effectiveDepTime(nextFlight.dep) : null;
+  const countdown = effDep ? getCountdown(effDep) : null;
+  const isDelayed = nextFlight
+    ? !!(nextFlight.dep.estimatedTime || nextFlight.dep.actualTime) &&
+      effDep !== nextFlight.dep.scheduledTime
+    : false;
 
-  const heroBg = nextFlight
-    ? countdownBgColor(nextFlight.dep.scheduledTime, c.primary)
+  const heroBg = effDep
+    ? countdownBgColor(effDep, c.primary)
     : c.primary;
 
   // ── Weather for arrival airport ────────────────────────────────────────────
@@ -287,17 +291,46 @@ export function TripDashboardScreen() {
       nextFlight.dep.terminal ? `Terminal ${nextFlight.dep.terminal}` : '',
       nextFlight.arr.gate ? `Gate ${nextFlight.arr.gate}` : '',
       '',
-      '_Shared via FlyEasy_',
+      '_Shared via ReadyToFly_',
     ].filter(Boolean).join('\n');
     Share.share({ message: lines, title: `Flight ${nextFlight.flightIata}` });
   }, [nextFlight]);
 
+  // ── Web check-in ─────────────────────────────────────────────────────────────
+  const handleCheckIn = useCallback(async () => {
+    if (!nextFlight) { return; }
+    const info = getCheckInInfo(nextFlight.airline, nextFlight.flightIata);
+    if (info) {
+      // Try to open the airline's own app first, fall back to web
+      if (info.appPkg) {
+        const marketUrl = `market://details?id=${info.appPkg}`;
+        try {
+          const canOpen = await Linking.canOpenURL(`intent://#Intent;package=${info.appPkg};end`);
+          if (canOpen) {
+            await Linking.openURL(`intent://#Intent;package=${info.appPkg};end`);
+            return;
+          }
+        } catch { /* fall through to web */ }
+      }
+      Linking.openURL(info.url).catch(() => {});
+    } else {
+      // Generic fallback: Google search for airline check-in
+      const query = encodeURIComponent(`${nextFlight.airline} web check-in`);
+      Linking.openURL(`https://www.google.com/search?q=${query}`).catch(() => {});
+    }
+  }, [nextFlight]);
+
   // ── DigiYatra deep-link ─────────────────────────────────────────────────────
-  const handleDigiYatra = () => {
+  const handleDigiYatra = async () => {
     const pkg = 'in.co.aai.digiyatra';
-    Linking.openURL(`intent://#Intent;package=${pkg};end`).catch(() =>
-      Linking.openURL('https://play.google.com/store/apps/details?id=in.co.aai.digiyatra'),
-    );
+    const marketUrl = `market://details?id=${pkg}`;
+    const webUrl = `https://play.google.com/store/apps/details?id=${pkg}`;
+    try {
+      const canOpen = await Linking.canOpenURL(marketUrl);
+      await Linking.openURL(canOpen ? marketUrl : webUrl);
+    } catch {
+      Linking.openURL(webUrl);
+    }
   };
 
   const quickTools = [
@@ -419,7 +452,18 @@ export function TripDashboardScreen() {
           <View style={styles.countdownRoute}>
             <View>
               <Text style={styles.countdownIata}>{nextFlight.dep.iata}</Text>
-              <Text style={styles.countdownTime}>{formatISOTime(nextFlight.dep.scheduledTime)}</Text>
+              {isDelayed ? (
+                <>
+                  <Text style={[styles.countdownTime, { textDecorationLine: 'line-through', opacity: 0.5 }]}>
+                    {formatISOTime(nextFlight.dep.scheduledTime)}
+                  </Text>
+                  <Text style={[styles.countdownTime, { color: '#F59E0B' }]}>
+                    {formatISOTime(effDep!)} 🔴
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.countdownTime}>{formatISOTime(nextFlight.dep.scheduledTime)}</Text>
+              )}
             </View>
             <Text style={styles.countdownPlane}>✈</Text>
             <View style={{ alignItems: 'flex-end' }}>
@@ -454,9 +498,20 @@ export function TripDashboardScreen() {
           <View style={styles.statusRoute}>
             <View style={styles.statusEndpoint}>
               <Text style={[styles.statusIata, { color: c.text }]}>{nextFlight.dep.iata}</Text>
-              <Text style={[styles.statusDepTime, { color: c.textSecondary }]}>
-                {formatISOTime(nextFlight.dep.scheduledTime)}
-              </Text>
+              {isDelayed ? (
+                <>
+                  <Text style={[styles.statusDepTime, { textDecorationLine: 'line-through', opacity: 0.45, color: c.textSecondary }]}>
+                    {formatISOTime(nextFlight.dep.scheduledTime)}
+                  </Text>
+                  <Text style={[styles.statusDepTime, { color: '#F59E0B', fontWeight: '700' }]}>
+                    {formatISOTime(effDep!)} Delayed
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.statusDepTime, { color: c.textSecondary }]}>
+                  {formatISOTime(nextFlight.dep.scheduledTime)}
+                </Text>
+              )}
               <Text style={[styles.statusAirportName, { color: c.textSecondary }]} numberOfLines={1}>
                 {nextFlight.dep.airport}
               </Text>
@@ -491,7 +546,7 @@ export function TripDashboardScreen() {
             ) : null}
           </View>
 
-          {/* Share + DigiYatra action row */}
+          {/* Share + Check In + DigiYatra action row */}
           <View style={[styles.statusDivider, { backgroundColor: c.border, marginTop: 14 }]} />
           <View style={styles.actionRow}>
             <TouchableOpacity
@@ -499,7 +554,14 @@ export function TripDashboardScreen() {
               onPress={handleShareTrip}
               activeOpacity={0.75}>
               <Text style={styles.actionBtnIcon}>📤</Text>
-              <Text style={[styles.actionBtnLabel, { color: c.primary }]}>Share Trip</Text>
+              <Text style={[styles.actionBtnLabel, { color: c.primary }]}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: '#F59E0B' + '18' }]}
+              onPress={handleCheckIn}
+              activeOpacity={0.75}>
+              <Text style={styles.actionBtnIcon}>🎟️</Text>
+              <Text style={[styles.actionBtnLabel, { color: '#F59E0B' }]}>Check In</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: '#10B981' + '15' }]}

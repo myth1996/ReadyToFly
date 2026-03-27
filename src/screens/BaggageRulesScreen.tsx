@@ -127,14 +127,20 @@ export function BaggageRulesScreen() {
         </Text>
       </View>
 
-      {baggageRules.map(rule => (
-        <AirlineCard
-          key={rule.code}
-          rule={rule}
-          expanded={expandedCode === rule.code}
-          onToggle={() => handleToggle(rule.code)}
-          c={c}
-        />
+      {baggageRules.map((rule, index) => (
+        <React.Fragment key={rule.code}>
+          <AirlineCard
+            rule={rule}
+            expanded={expandedCode === rule.code}
+            onToggle={() => handleToggle(rule.code)}
+            c={c}
+          />
+          {index % 3 === 2 && !isPremiumUser && (
+            <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+              <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+            </View>
+          )}
+        </React.Fragment>
       ))}
 
       {/* Universal rules */}

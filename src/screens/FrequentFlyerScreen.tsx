@@ -6,6 +6,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettings } from '../context/SettingsContext';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { adService } from '../services/AdService';
+import { useAuth } from '../context/AuthContext';
 import { FF_PROGRAMMES, FFProgramme } from '../data/frequentFlyer';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -49,6 +52,7 @@ function ProgrammeRow({
   onSave: () => void;
 }) {
   const { themeColors: c } = useSettings();
+  const { isPremiumUser } = useAuth();
   const hasMembership = !!card?.membershipId;
 
   return (
@@ -161,6 +165,7 @@ function ProgrammeRow({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function FrequentFlyerScreen() {
   const { themeColors: c } = useSettings();
+  const { isPremiumUser } = useAuth();
   const [cards, setCards] = useState<Record<string, FFCard>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   // draft changes before save
@@ -224,7 +229,7 @@ export function FrequentFlyerScreen() {
       )}
 
       {/* Programme list */}
-      {FF_PROGRAMMES.map(prog => {
+      {FF_PROGRAMMES.map((prog, index) => {
         const key = prog.airline;
         const mergedCard: FFCard | undefined = cards[key]
           ? { ...cards[key], ...(drafts[key] ?? {}) } as FFCard
@@ -233,21 +238,34 @@ export function FrequentFlyerScreen() {
           : undefined;
 
         return (
-          <ProgrammeRow
-            key={key}
-            prog={prog}
-            card={mergedCard}
-            expanded={expanded === key}
-            onToggle={() => handleToggle(key)}
-            onChange={(field, value) => handleChange(key, field, value)}
-            onSave={() => handleSave(key)}
-          />
+          <React.Fragment key={key}>
+            <ProgrammeRow
+              prog={prog}
+              card={mergedCard}
+              expanded={expanded === key}
+              onToggle={() => handleToggle(key)}
+              onChange={(field, value) => handleChange(key, field, value)}
+              onSave={() => handleSave(key)}
+            />
+            {index === 2 && !isPremiumUser && (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+              </View>
+            )}
+          </React.Fragment>
         );
       })}
 
       <Text style={[styles.footer, { color: c.textSecondary }]}>
-        Data is stored on-device only. FlyEasy does not share your membership details.
+        Data is stored on-device only. ReadyToFly does not share your membership details.
       </Text>
+
+      {/* ── Bottom Banner Ad (free users) ─────────────────────── */}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+        </View>
+      )}
     </ScrollView>
   );
 }

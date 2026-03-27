@@ -56,7 +56,7 @@ export function HomeScreen() {
       contentContainerStyle={styles.content}>
 
       <View style={[styles.hero, { backgroundColor: c.primary }]}>
-        <Text style={styles.heroTitle}>✈️ FlyEasy</Text>
+        <Text style={styles.heroTitle}>✈️ ReadyToFly</Text>
         <Text style={styles.heroTagline}>{t.appTagline}</Text>
       </View>
 

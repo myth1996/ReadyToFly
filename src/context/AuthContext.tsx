@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { getOrCreateUser, isPremiumActive } from '../services/UserService';
+import { getOrCreateUser, isPremiumActive, isTrialActive, isTrialEligible, updateUser } from '../services/UserService';
+import { FEATURES } from '../config/env';
 
 // ── IMPORTANT: Replace with your Web Client ID from Firebase Console
 // Firebase Console → Project Settings → General → Your apps → Web app → Client ID
@@ -18,24 +19,34 @@ type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
   loading: boolean;
   isPremiumUser: boolean;
+  isInTrial: boolean;
+  trialEligible: boolean;
   googleAccessToken: string | null;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  startFreeTrial: () => Promise<boolean>;
+  refreshPremiumStatus: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isPremiumUser: false,
+  isInTrial: false,
+  trialEligible: false,
   googleAccessToken: null,
   signOut: async () => {},
   signInWithGoogle: async () => {},
+  startFreeTrial: async () => false,
+  refreshPremiumStatus: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [isInTrial, setIsInTrial] = useState(false);
+  const [trialEligible, setTrialEligible] = useState(false);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const prevUidRef = useRef<string | null>(null);
 
@@ -51,14 +62,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               currentUser.uid,
               currentUser.phoneNumber ?? currentUser.email ?? '',
             );
-            setIsPremiumUser(isPremiumActive(userDoc));
+            setIsPremiumUser(FEATURES.DEBUG_FORCE_FREE_USER ? false : isPremiumActive(userDoc));
+            setIsInTrial(isTrialActive(userDoc));
+            setTrialEligible(isTrialEligible(userDoc));
           } catch (_) {
             setIsPremiumUser(false);
+            setIsInTrial(false);
+            setTrialEligible(false);
           }
         }
       } else {
         prevUidRef.current = null;
         setIsPremiumUser(false);
+        setIsInTrial(false);
+        setTrialEligible(false);
         setGoogleAccessToken(null);
       }
 
@@ -66,6 +83,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return unsubscribe;
   }, []);
+
+  const startFreeTrial = async (): Promise<boolean> => {
+    if (!user || !trialEligible) { return false; }
+    try {
+      const now = new Date();
+      await updateUser(user.uid, {
+        trialStartedAt: now,
+        trialUsed: true,
+      });
+      setIsInTrial(true);
+      setTrialEligible(false);
+      setIsPremiumUser(FEATURES.DEBUG_FORCE_FREE_USER ? false : true); // trial = premium access
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const refreshPremiumStatus = async () => {
+    if (!user) { return; }
+    try {
+      const userDoc = await getOrCreateUser(
+        user.uid,
+        user.phoneNumber ?? user.email ?? '',
+      );
+      setIsPremiumUser(FEATURES.DEBUG_FORCE_FREE_USER ? false : isPremiumActive(userDoc));
+      setIsInTrial(isTrialActive(userDoc));
+      setTrialEligible(isTrialEligible(userDoc));
+    } catch (_) {}
+  };
 
   const signInWithGoogle = async () => {
     try {
@@ -88,8 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      const isSignedIn = await GoogleSignin.isSignedIn();
-      if (isSignedIn) { await GoogleSignin.signOut(); }
+      const currentUser = await GoogleSignin.getCurrentUser();
+      if (currentUser) { await GoogleSignin.signOut(); }
     } catch (_) { /* ignore */ }
     setGoogleAccessToken(null);
     await auth().signOut();
@@ -100,9 +147,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       isPremiumUser,
+      isInTrial,
+      trialEligible,
       googleAccessToken,
       signOut,
       signInWithGoogle,
+      startFreeTrial,
+      refreshPremiumStatus,
     }}>
       {children}
     </AuthContext.Provider>

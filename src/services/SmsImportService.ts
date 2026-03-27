@@ -125,7 +125,7 @@ async function requestSmsPermission(): Promise<boolean> {
       {
         title: 'Read SMS Permission',
         message:
-          'FlyEasy needs access to read your SMS messages to automatically find flight booking confirmations.\n\nAll parsing happens on your phone — your messages are never sent to any server.',
+          'ReadyToFly needs access to read your SMS messages to automatically find flight booking confirmations.\n\nAll parsing happens on your phone — your messages are never sent to any server.',
         buttonPositive: 'Allow',
         buttonNegative: 'Deny',
       },

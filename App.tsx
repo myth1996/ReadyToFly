@@ -32,9 +32,11 @@ function AppContent() {
     }).catch(() => setOnboardingDone(false));
   }, []);
 
-  // Set up notification channels once on app start
+  // Set up notification channels + request permission once on app start
   useEffect(() => {
-    notificationService.setup().catch(() => {});
+    notificationService.setup()
+      .then(() => notificationService.requestPermission())
+      .catch(() => {});
   }, []);
 
   // ── UMP Consent (GDPR / ePrivacy for EU/UK/Gulf) ─────────────────────────
@@ -91,7 +93,7 @@ function AppContent() {
       setTimeout(() => {
         Alert.alert(
           '✈️ Auto-Fetch Flight Details?',
-          'Allow FlyEasy to scan your SMS for flight booking confirmations?\n\nThis lets us import your trips automatically — no manual entry needed.\n\n🔒 All parsing happens on your phone. Your messages are never sent to any server.',
+          'Allow ReadyToFly to scan your SMS for flight booking confirmations?\n\nThis lets us import your trips automatically — no manual entry needed.\n\n🔒 All parsing happens on your phone. Your messages are never sent to any server.',
           [
             { text: 'Not Now', style: 'cancel' },
             {

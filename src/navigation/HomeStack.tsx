@@ -29,10 +29,23 @@ import { PremiumScreen } from '../screens/PremiumScreen';
 import { FrequentFlyerScreen } from '../screens/FrequentFlyerScreen';
 import { VisaScreen } from '../screens/VisaScreen';
 import { SearchScreen } from '../screens/SearchScreen';
+import { FlightTimelineScreen } from '../screens/FlightTimelineScreen';
+import { CabCompareScreen } from '../screens/CabCompareScreen';
+import { LandedSafelySetupScreen } from '../screens/LandedSafelySetupScreen';
+import { LandedConfirmationScreen } from '../screens/LandedConfirmationScreen';
+import { ArrivalScreen } from '../screens/ArrivalScreen';
+import { AirportMapScreen } from '../screens/AirportMapScreen';
+import { TripVaultScreen } from '../screens/TripVaultScreen';
+import { MultiLegScreen } from '../screens/MultiLegScreen';
+import { CoTravellerScreen } from '../screens/CoTravellerScreen';
+import { FlightHistoryScreen } from '../screens/FlightHistoryScreen';
+import { SmsImportScreen } from '../screens/SmsImportScreen';
+import { CabDirection } from '../services/CabService';
 
 export type HomeStackParamList = {
+  FlightTimeline: undefined;
   TripDashboard: undefined;
-  AddFlight: undefined;
+  AddFlight: { tripId?: string; tripName?: string } | undefined;
   LeaveBy: undefined;
   DocChecklist: undefined;
   CalmMode: undefined;
@@ -43,6 +56,16 @@ export type HomeStackParamList = {
   Search: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
+  CabCompare: { direction: CabDirection; airportIata: string };
+  LandedSafelySetup: undefined;
+  LandedConfirmation: { arrIata: string; flightIata: string };
+  Arrival: { flightIata: string; arrIata: string };
+  AirportMap: { airportIata: string };
+  TripVault: undefined;
+  MultiLeg: undefined;
+  CoTraveller: undefined;
+  FlightHistory: undefined;
+  SmsImport: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -184,10 +207,18 @@ export function HomeStack() {
         headerBackTitle: 'Back',
       }}>
       <Stack.Screen
+        name="FlightTimeline"
+        component={FlightTimelineScreen}
+        options={{
+          headerTitle: 'ReadyToFly ✈️',
+          headerRight: () => <HamburgerButton />,
+        }}
+      />
+      <Stack.Screen
         name="TripDashboard"
         component={TripDashboardScreen}
         options={{
-          headerTitle: 'FlyEasy ✈️',
+          headerTitle: '📊 Flight Dashboard',
           headerRight: () => <HamburgerButton />,
         }}
       />
@@ -219,7 +250,7 @@ export function HomeStack() {
       <Stack.Screen
         name="Premium"
         component={PremiumScreen}
-        options={{ headerTitle: '👑 FlyEasy Premium' }}
+        options={{ headerTitle: '👑 ReadyToFly Premium' }}
       />
       <Stack.Screen
         name="FrequentFlyer"
@@ -235,6 +266,58 @@ export function HomeStack() {
         name="Search"
         component={SearchScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CabCompare"
+        component={CabCompareScreen}
+        options={({ route }) => ({
+          headerTitle: route.params.direction === 'to_airport' ? '🚕 Cab to Airport' : '🚕 Cab from Airport',
+        })}
+      />
+      <Stack.Screen
+        name="LandedSafelySetup"
+        component={LandedSafelySetupScreen}
+        options={{ headerTitle: '🛡️ Landed Safely Setup' }}
+      />
+      <Stack.Screen
+        name="LandedConfirmation"
+        component={LandedConfirmationScreen}
+        options={{ headerTitle: '✅ You\'ve Landed!', headerBackVisible: false }}
+      />
+      <Stack.Screen
+        name="Arrival"
+        component={ArrivalScreen}
+        options={{ headerTitle: '🏁 Arrival' }}
+      />
+      <Stack.Screen
+        name="AirportMap"
+        component={AirportMapScreen}
+        options={({ route }) => ({ headerTitle: `🗺️ ${route.params.airportIata} Map` })}
+      />
+      <Stack.Screen
+        name="TripVault"
+        component={TripVaultScreen}
+        options={{ headerTitle: '🗂️ Trip Vault' }}
+      />
+      <Stack.Screen
+        name="MultiLeg"
+        component={MultiLegScreen}
+        options={{ headerTitle: '✈️✈️ Multi-Leg Trips' }}
+      />
+      <Stack.Screen
+        name="CoTraveller"
+        component={CoTravellerScreen}
+        options={{ headerTitle: '👥 Co-Traveller' }}
+      />
+      <Stack.Screen
+        name="FlightHistory"
+        component={FlightHistoryScreen}
+        options={{ headerTitle: '🕰️ Flight History' }}
+      />
+      <Stack.Screen
+        name="SmsImport"
+        component={SmsImportScreen}
+        options={{ headerTitle: '📩 Import from SMS' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"

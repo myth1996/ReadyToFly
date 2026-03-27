@@ -12,6 +12,9 @@ export interface UserDoc {
   gmailPermission: boolean;
   language: 'en' | 'hi';
   darkMode: boolean;
+  // Free trial
+  trialStartedAt: Date | null;  // null = trial not yet started
+  trialUsed: boolean;           // true = trial has been used (one per account)
 }
 
 const usersRef = firestore().collection('users');
@@ -34,6 +37,8 @@ export async function getOrCreateUser(uid: string, phone: string): Promise<UserD
         gmailPermission: data.gmailPermission ?? false,
         language: data.language ?? 'en',
         darkMode: data.darkMode ?? false,
+        trialStartedAt: data.trialStartedAt?.toDate() ?? null,
+        trialUsed: data.trialUsed ?? false,
       };
     }
 
@@ -46,6 +51,8 @@ export async function getOrCreateUser(uid: string, phone: string): Promise<UserD
       gmailPermission: false,
       language: 'en',
       darkMode: false,
+      trialStartedAt: null,
+      trialUsed: false,
     };
 
     await usersRef.doc(uid).set(newDoc);
@@ -58,6 +65,8 @@ export async function getOrCreateUser(uid: string, phone: string): Promise<UserD
       gmailPermission: false,
       language: 'en',
       darkMode: false,
+      trialStartedAt: null,
+      trialUsed: false,
     };
   } catch (error) {
     // Return safe defaults if Firestore is unreachable
@@ -69,6 +78,8 @@ export async function getOrCreateUser(uid: string, phone: string): Promise<UserD
       gmailPermission: false,
       language: 'en',
       darkMode: false,
+      trialStartedAt: null,
+      trialUsed: false,
     };
   }
 }
@@ -84,10 +95,30 @@ export async function updateUser(uid: string, updates: Partial<UserDoc>): Promis
   }
 }
 
+const TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+/**
+ * Check if a user's 3-day free trial is currently active.
+ */
+export function isTrialActive(userDoc: UserDoc): boolean {
+  if (!userDoc.trialStartedAt) { return false; }
+  return userDoc.trialStartedAt.getTime() + TRIAL_DURATION_MS > Date.now();
+}
+
+/**
+ * Check if this user is still eligible to start a free trial.
+ */
+export function isTrialEligible(userDoc: UserDoc): boolean {
+  return !userDoc.trialUsed;
+}
+
 /**
  * Check if a user's premium subscription is still active.
+ * Returns true for paid premium OR active free trial.
  */
 export function isPremiumActive(userDoc: UserDoc): boolean {
+  // Active free trial counts as premium
+  if (isTrialActive(userDoc)) { return true; }
   if (!userDoc.isPremium) { return false; }
   if (!userDoc.premiumExpiry) { return true; } // lifetime
   return userDoc.premiumExpiry.getTime() > Date.now();

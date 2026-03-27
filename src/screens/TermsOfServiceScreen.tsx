@@ -15,14 +15,14 @@ export function TermsOfServiceScreen() {
       </Text>
 
       <Section title="1. Acceptance of Terms" c={c}>
-        By downloading, installing, or using the FlyEasy mobile application
+        By downloading, installing, or using the ReadyToFly mobile application
         ("App"), you agree to be bound by these Terms of Service ("Terms").
         If you do not agree, please uninstall and discontinue use of the App.
         These Terms are governed by the laws of India.
       </Section>
 
       <Section title="2. Description of Service" c={c}>
-        FlyEasy is a travel companion app designed for Indian air travellers.
+        ReadyToFly is a travel companion app designed for Indian air travellers.
         The App provides tools including:{'\n\n'}
         • Leave-By Calculator — estimates when to leave home for your flight{'\n'}
         • Document Checklist — helps you ensure you have required documents{'\n'}
@@ -30,7 +30,7 @@ export function TermsOfServiceScreen() {
         • Airport Guide — information about major Indian airports{'\n'}
         • Calm Mode — breathing exercises for anxious flyers{'\n\n'}
         Flight data is sourced from third-party APIs. While we strive for
-        accuracy, FlyEasy is not responsible for missed flights due to
+        accuracy, ReadyToFly is not responsible for missed flights due to
         inaccurate or delayed flight data.
       </Section>
 
@@ -42,7 +42,7 @@ export function TermsOfServiceScreen() {
       </Section>
 
       <Section title="4. Premium Subscriptions" c={c}>
-        FlyEasy offers a premium subscription ("FlyEasy Premium") with the
+        ReadyToFly offers a premium subscription ("ReadyToFly Premium") with the
         following plans:{'\n\n'}
         • Monthly: ₹99/month{'\n'}
         • Yearly: ₹499/year{'\n'}
@@ -64,25 +64,25 @@ export function TermsOfServiceScreen() {
       </Section>
 
       <Section title="6. Advertisements" c={c}>
-        The free tier of FlyEasy displays advertisements provided by Google
+        The free tier of ReadyToFly displays advertisements provided by Google
         AdMob. These ads may be personalised based on your general interests.
         Premium subscribers enjoy an ad-free experience. We do not endorse
         any product or service advertised within the App.
       </Section>
 
       <Section title="7. Disclaimer of Warranties" c={c}>
-        FlyEasy is provided "as is" and "as available" without warranties of
+        ReadyToFly is provided "as is" and "as available" without warranties of
         any kind. We do not warrant that:{'\n\n'}
         • The App will be uninterrupted or error-free{'\n'}
         • Flight data will always be accurate or up-to-date{'\n'}
         • The App will meet your specific requirements{'\n\n'}
-        FlyEasy is a travel aid tool and should not be your sole source of
+        ReadyToFly is a travel aid tool and should not be your sole source of
         flight information. Always verify critical information (gate, timing,
         cancellations) directly with your airline or airport.
       </Section>
 
       <Section title="8. Limitation of Liability" c={c}>
-        To the maximum extent permitted by Indian law, FlyEasy and its
+        To the maximum extent permitted by Indian law, ReadyToFly and its
         developers shall not be liable for any indirect, incidental, or
         consequential damages arising from your use of the App, including
         but not limited to missed flights, lost baggage, or travel
@@ -92,7 +92,7 @@ export function TermsOfServiceScreen() {
       <Section title="9. Intellectual Property" c={c}>
         All content, features, and functionality of the App — including but
         not limited to text, graphics, logos, and software — are owned by
-        FlyEasy and are protected under Indian intellectual property laws.
+        ReadyToFly and are protected under Indian intellectual property laws.
         You may not reproduce or distribute any part of the App without our
         prior written permission.
       </Section>
@@ -120,8 +120,8 @@ export function TermsOfServiceScreen() {
 
       <Section title="13. Contact Us" c={c}>
         If you have any questions about these Terms, please contact us:{'\n\n'}
-        📧 support@flyeasy.in{'\n'}
-        🌐 www.flyeasy.in{'\n\n'}
+        📧 support@readytofly.in{'\n'}
+        🌐 www.readytofly.in{'\n\n'}
         We aim to respond to all queries within 5 business days.
       </Section>
 

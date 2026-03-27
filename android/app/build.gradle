@@ -91,6 +91,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 9
         versionName "1.4.1"
+        manifestPlaceholders = [usesCleartextTraffic: "true"]
         // Only build for physical device architectures — skips x86/x86_64 (emulator-only)
         // This cuts build time from ~5 min to ~1 min for USB debug builds
         ndk {

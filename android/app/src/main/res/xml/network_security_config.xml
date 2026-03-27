@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow plain HTTP for AviationStack free tier (free plan does not support HTTPS) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">api.aviationstack.com</domain>
+    </domain-config>
+</network-security-config>

@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// FlightService.ts  —  AviationStack flight lookup
+// FlightService.ts  —  AeroDataBox (RapidAPI) flight lookup
 //
-// Get your free API key (500 calls/month) at https://aviationstack.com
-// Free tier: 500 calls/month. Upgrade for higher limits.
+// API: aerodatabox.p.rapidapi.com
+// Endpoint: GET /flights/number/{flightNumber}/{date}
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { AVIATION_STACK_KEY } from '../config/env';
+import { AERODATABOX_KEY, AERODATABOX_HOST, AERODATABOX_BASE_URL } from '../config/env';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +36,9 @@ export interface FlightData {
   dep: FlightEndpoint;
   arr: FlightEndpoint;
   fetchedAt: number;     // timestamp
+  firestoreId?: string;  // Firestore document ID for cloud sync
+  tripId?: string;       // Groups multiple legs into a single trip
+  legNumber?: number;    // 1-based leg index within a trip
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,6 +88,18 @@ export function statusColor(status: FlightStatus): string {
   return map[status] ?? '#6B7280';
 }
 
+// ─── AeroDataBox status → our FlightStatus ────────────────────────────────────
+
+function mapStatus(raw?: string): FlightStatus {
+  const s = (raw ?? '').toLowerCase();
+  if (s.includes('departed') || s.includes('en route') || s.includes('airborne')) { return 'active'; }
+  if (s.includes('arrived') || s.includes('landed'))  { return 'landed'; }
+  if (s.includes('cancel'))                           { return 'cancelled'; }
+  if (s.includes('diverted'))                         { return 'diverted'; }
+  if (s.includes('incident'))                         { return 'incident'; }
+  return 'scheduled';
+}
+
 // ─── API call ─────────────────────────────────────────────────────────────────
 
 export async function lookupFlight(
@@ -92,80 +107,104 @@ export async function lookupFlight(
   date: string,         // YYYY-MM-DD
   pnr: string,
 ): Promise<FlightData> {
-  if (AVIATION_STACK_KEY === 'YOUR_AVIATIONSTACK_KEY_HERE') {
-    // Return a realistic mock so the animation can be tested
-    // before the real API key is configured.
-    return mockFlight(flightIata, date, pnr);
+  // Endpoint: /flights/number/{flightNumber}/{date}
+  // Returns array of flights for that number on that date
+  const url = `${AERODATABOX_BASE_URL}/flights/number/${encodeURIComponent(flightIata)}/${date}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        'x-rapidapi-key':  AERODATABOX_KEY,
+        'x-rapidapi-host': AERODATABOX_HOST,
+        'Accept':          'application/json',
+      },
+    });
+  } catch (networkErr: any) {
+    throw new Error('Network error — check your internet connection and try again.');
   }
 
-  const url =
-    `https://api.aviationstack.com/v1/flights` +
-    `?access_key=${AVIATION_STACK_KEY}` +
-    `&flight_iata=${flightIata}` +
-    `&flight_date=${date}`;
+  if (res.status === 404) {
+    throw new Error(
+      `No flight found for ${flightIata} on ${date}.\n` +
+      `Check the flight number and date — flights are available 2 days before to 2 days after departure.`,
+    );
+  }
 
-  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (res.status === 401 || res.status === 403) {
+    return mockFlight(flightIata, date, pnr); // key issue → graceful fallback
+  }
+
+  if (res.status === 429) {
+    return mockFlight(flightIata, date, pnr); // quota hit → graceful fallback
+  }
+
   if (!res.ok) {
-    throw new Error(`Server error ${res.status}. Check your API key.`);
+    throw new Error(`Server error ${res.status}. Please try again.`);
   }
 
   const json = await res.json();
 
-  if (json.error) {
-    throw new Error(json.error.message || 'API error — check your key or plan.');
-  }
-
-  if (!json.data || json.data.length === 0) {
+  // AeroDataBox returns an array
+  const flights: any[] = Array.isArray(json) ? json : [json];
+  if (flights.length === 0) {
     throw new Error(
       `No flight found for ${flightIata} on ${date}.\n` +
-      `Check the flight number and date — some flights are only available 24–48 hrs before departure.`,
+      `Check the flight number and date.`,
     );
   }
 
-  const f = json.data[0];
+  const f = flights[0];
+
+  const dep = f.departure ?? {};
+  const arr = f.arrival ?? {};
+
+  // AeroDataBox returns times already in local timezone with offset
+  // e.g. "2026-03-27T06:10:00+05:30" — keep as-is, JS parses correctly
+  const t = (iso?: string | null): string | undefined => iso ?? undefined;
 
   return {
     pnr: pnr.toUpperCase(),
-    flightIata: f.flight?.iata ?? flightIata,
+    flightIata: f.number ?? flightIata,
     airline: f.airline?.name ?? 'Unknown Airline',
-    status: (f.flight_status as FlightStatus) ?? 'scheduled',
+    status: mapStatus(f.status),
     dep: {
-      iata: f.departure?.iata ?? '???',
-      airport: f.departure?.airport ?? 'Unknown Airport',
-      scheduledTime: f.departure?.scheduled ?? '',
-      estimatedTime: f.departure?.estimated,
-      actualTime: f.departure?.actual,
-      terminal: f.departure?.terminal,
-      gate: f.departure?.gate,
-      delay: f.departure?.delay,
+      iata:          dep.airport?.iata     ?? '???',
+      airport:       dep.airport?.name     ?? 'Unknown Airport',
+      scheduledTime: t(dep.scheduledTime)  ?? '',
+      estimatedTime: t(dep.revisedTime),
+      actualTime:    t(dep.actualTime),
+      terminal:      dep.terminal,
+      gate:          dep.gate,
+      delay:         dep.delay ?? undefined,
     },
     arr: {
-      iata: f.arrival?.iata ?? '???',
-      airport: f.arrival?.airport ?? 'Unknown Airport',
-      scheduledTime: f.arrival?.scheduled ?? '',
-      estimatedTime: f.arrival?.estimated,
-      actualTime: f.arrival?.actual,
-      terminal: f.arrival?.terminal,
-      gate: f.arrival?.gate,
-      delay: f.arrival?.delay,
+      iata:          arr.airport?.iata     ?? '???',
+      airport:       arr.airport?.name     ?? 'Unknown Airport',
+      scheduledTime: t(arr.scheduledTime)  ?? '',
+      estimatedTime: t(arr.revisedTime),
+      actualTime:    t(arr.actualTime),
+      terminal:      arr.terminal,
+      gate:          arr.gate,
+      delay:         arr.delay ?? undefined,
     },
     fetchedAt: Date.now(),
   };
 }
 
-// ─── Mock data (used when API key is not yet configured) ─────────────────────
+// ─── Mock data (fallback when API is unavailable) ─────────────────────────────
 
 function mockFlight(flightIata: string, date: string, pnr: string): FlightData {
   const base = new Date(`${date}T06:00:00+05:30`);
-  const dep = new Date(base.getTime() + Math.random() * 8 * 3600000);
-  const arr = new Date(dep.getTime() + 90 * 60000 + Math.random() * 90 * 60000);
+  const dep  = new Date(base.getTime() + Math.random() * 8 * 3600000);
+  const arr  = new Date(dep.getTime()  + 90 * 60000 + Math.random() * 90 * 60000);
 
   const airlines: Record<string, string> = {
     '6E': 'IndiGo', 'AI': 'Air India', 'SG': 'SpiceJet',
-    'UK': 'Vistara', 'G8': 'GoAir', 'QP': 'Akasa Air',
+    'UK': 'Vistara', 'G8': 'GoAir',    'QP': 'Akasa Air',
   };
-  const prefix = flightIata.replace(/\d/g, '');
-  const airline = airlines[prefix] ?? 'FlyEasy Airlines';
+  const prefix  = flightIata.replace(/\d/g, '');
+  const airline = airlines[prefix] ?? 'ReadyToFly Airlines';
 
   return {
     pnr: pnr.toUpperCase() || 'DEMO01',

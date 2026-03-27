@@ -62,7 +62,7 @@ export function LoginScreen({ onOtpSent }: Props) {
     >
       <View style={styles.inner}>
         <Text style={styles.logo}>✈️</Text>
-        <Text style={styles.title}>FlyEasy</Text>
+        <Text style={styles.title}>ReadyToFly</Text>
         <Text style={styles.tagline}>Fly Without the Fear</Text>
 
         <View style={styles.card}>

@@ -15,9 +15,9 @@ export function PrivacyPolicyScreen() {
       </Text>
 
       <Section title="1. Introduction" c={c}>
-        FlyEasy ("we", "our", "us") is committed to protecting your personal
+        ReadyToFly ("we", "our", "us") is committed to protecting your personal
         information. This Privacy Policy explains how we collect, use, and
-        safeguard your data when you use the FlyEasy mobile application
+        safeguard your data when you use the ReadyToFly mobile application
         ("App"), which is operated in accordance with the Digital Personal
         Data Protection (DPDP) Act, 2023 of India.
       </Section>
@@ -69,7 +69,7 @@ export function PrivacyPolicyScreen() {
       </Section>
 
       <Section title="6. Children's Privacy" c={c}>
-        FlyEasy is not intended for children under the age of 13. We do not
+        ReadyToFly is not intended for children under the age of 13. We do not
         knowingly collect personal data from children.
       </Section>
 
@@ -99,8 +99,8 @@ export function PrivacyPolicyScreen() {
       <Section title="10. Contact Us" c={c}>
         For any privacy-related questions or to exercise your rights under
         the DPDP Act, please contact us at:{'\n\n'}
-        📧 support@flyeasy.in{'\n'}
-        🌐 www.flyeasy.in{'\n\n'}
+        📧 support@readytofly.in{'\n'}
+        🌐 www.readytofly.in{'\n\n'}
         We will respond to all requests within 30 days.
       </Section>
 

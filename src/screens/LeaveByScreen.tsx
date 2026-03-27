@@ -11,6 +11,10 @@ import {
   Linking,
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { adService } from '../services/AdService';
+import { useAuth } from '../context/AuthContext';
+import { AdGuard } from '../services/AdGuard';
 import { useFlights } from '../context/FlightsContext';
 import { formatISOTime } from '../services/FlightService';
 import { notificationService } from '../services/NotificationService';
@@ -59,6 +63,7 @@ function getCountdown(leaveBy: Date) {
 
 export function LeaveByScreen() {
   const { themeColors: c } = useSettings();
+  const { isPremiumUser } = useAuth();
   const { nextFlight } = useFlights();
 
   const [flightNum, setFlightNum] = useState('');
@@ -370,6 +375,13 @@ export function LeaveByScreen() {
           <TouchableOpacity style={styles.resetBtn} onPress={reset}>
             <Text style={styles.resetBtnText}>Calculate Again</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Banner Ad (free users) ───────────────────────── */}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
         </View>
       )}
     </ScrollView>

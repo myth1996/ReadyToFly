@@ -14,6 +14,7 @@ import {
 import { useSettings } from '../context/SettingsContext';
 import { useFlights } from '../context/FlightsContext';
 import { adService } from '../services/AdService';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { AdGuard } from '../services/AdGuard';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -32,9 +33,12 @@ type AirportInfo = {
   transport: string;
   wifi: string;
   helpline: string;
+  food: string;
+  facilities: string;
 };
 
 const AIRPORTS: AirportInfo[] = [
+  // ─── Top Metro International Hubs ────────────────────────────────────────
   // ─── Top Metro International Hubs ────────────────────────────────────────
   {
     code: 'DEL', name: 'Indira Gandhi International', city: 'Delhi',
@@ -43,6 +47,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Airport Express Metro to New Delhi (20 min, ₹60) · Cab ₹350–600 · Bus ₹50',
     wifi: 'Free 30 min Wi-Fi (Tata Docomo)',
     helpline: '0124-337-6000',
+    food: 'T3: Burger King, Subway, KFC, Wok & Roll, Cafe Coffee Day, Haldiram\'s · T1: McDonald\'s, Café TB, Biryani Blues · Prices ₹150–600',
+    facilities: 'Prayer rooms (T2 & T3) · Medical center · Children\'s play area · Smoking zones · Currency exchange · ATMs · Baby care rooms · Duty-free shopping · Pharmacy',
   },
   {
     code: 'BOM', name: 'Chhatrapati Shivaji Maharaj', city: 'Mumbai',
@@ -51,14 +57,18 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Western Railway Andheri ₹10 · Cab ₹400–700 · BEST Bus ₹100–150',
     wifi: 'Free 45 min Wi-Fi',
     helpline: '022-6685-1010',
+    food: 'T2: The Great Indian Café, McDonald\'s, Baskin Robbins, Starbucks, Bombay Bar · T1: Café Coffee Day, Juice bars, Snack counters · Prices ₹100–500',
+    facilities: 'Yoga room (T2, airside) · Prayer room · Medical center · ATMs · Duty-free (Heinemann) · Baby care · Smoking lounges · Baggage wrapping',
   },
   {
     code: 'BLR', name: 'Kempegowda International', city: 'Bengaluru',
-    terminals: 'T1 (Domestic & International), T2 (Indigo & others, opened 2023)',
+    terminals: 'T1 (Domestic & International), T2 (IndiGo & others, opened 2023)',
     lounges: 'Above Ground Level (T1), BLR Lounge (T1), Plaza Premium (T2)',
     transport: 'BMTC Vayu Vajra Bus ₹250–350 · Cab ₹600–900 · Kempegowda Metro (upcoming 2025)',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '080-2201-2001',
+    food: 'T1: Mast Kalandar, Subway, Starbucks, Keventers, Chili\'s, Kaati Zone · T2: Food court with Café Coffee Day, MTR, KFC · Prices ₹100–500',
+    facilities: 'Medical center · Prayer room · Yoga room (T2) · Currency exchange · ATMs · Duty-free · Baby care rooms · Smoking zones · Luggage storage',
   },
   {
     code: 'MAA', name: 'Chennai International', city: 'Chennai',
@@ -67,6 +77,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'MRTS Tirusulam Station ₹10 · Cab ₹300–500 · MTC Bus ₹30',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '044-2256-0551',
+    food: 'T1: Murugan Idli Shop, Café Coffee Day, Subway · T4: The Great Kabab Factory, Mainland China, KFC · Prices ₹80–400',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Duty-free shopping · Baby care · Smoking zones · Coat check',
   },
   {
     code: 'HYD', name: 'Rajiv Gandhi International', city: 'Hyderabad',
@@ -75,6 +87,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Pushpak Bus ₹250 · Cab ₹800–1200 · Metro to Raidurg + cab',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '040-6546-6370',
+    food: 'Paradise Biryani, McDonald\'s, Starbucks, Subway, Spice Zone, KFC, Café Coffee Day · Prices ₹100–500',
+    facilities: 'Prayer rooms (Islamic, Hindu, Christian) · Medical center · ATMs · Currency exchange · Duty-free · Children\'s play area · Baby care · Smoking zones',
   },
   {
     code: 'CCU', name: 'Netaji Subhas Chandra Bose', city: 'Kolkata',
@@ -83,6 +97,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'AC Bus ₹70–100 · Cab ₹250–500 · Metro Dum Dum station ₹10–30',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '033-2511-8787',
+    food: 'Oh! Calcutta, Mainland China, KFC, Café Coffee Day, Mio Amore, Dominos · Prices ₹80–400',
+    facilities: 'Medical center · Prayer room · ATMs · Currency exchange · Duty-free · Baby care rooms · Smoking area · Luggage wrapping',
   },
   {
     code: 'COK', name: 'Cochin International', city: 'Kochi',
@@ -91,6 +107,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'AC Bus ₹90 · Cab ₹600–1000 · Prepaid taxi counter',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0484-261-0115',
+    food: 'Kerala Kitchen (traditional Kerala cuisine), KFC, Café Coffee Day, Subway, Juice Junction · Prices ₹80–350',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Duty-free · Baby care · Smoking zones · Solar-powered terminal (world\'s first)',
   },
   // ─── Tier-2 International ─────────────────────────────────────────────────
   {
@@ -100,6 +118,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'AMTS Bus ₹30 · Cab ₹200–400 · BRTS rapid bus ₹15',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '079-2286-9211',
+    food: 'Agashiye (Gujarati thali), Amul Café, KFC, Café Coffee Day, Juice Corner · Prices ₹80–350 (all-veg options widely available)',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Baby care · Duty-free · Smoking zone',
   },
   {
     code: 'GOI', name: 'Manohar International (Mopa)', city: 'Goa',
@@ -108,6 +128,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Kadamba Bus ₹200 · Cab ₹1200–2000 (South Goa) · Prepaid taxi counter',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0832-254-0806',
+    food: 'Martin\'s Corner (Goan cuisine), KFC, Subway, Café Coffee Day, Goan snacks counter · Prices ₹100–450',
+    facilities: 'Medical center · ATMs · Currency exchange · Duty-free · Baby care · Prayer room · Smoking zone',
   },
   {
     code: 'TRV', name: 'Trivandrum International', city: 'Thiruvananthapuram',
@@ -116,6 +138,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'KSRTC Bus ₹15–30 · Cab ₹250–400 · Auto ₹150–200',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0471-250-1426',
+    food: 'Kerala meals, Café Coffee Day, KFC, Juice Junction, Saravana Bhavan · Prices ₹60–300',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Baby care · Duty-free · Smoking area',
   },
   {
     code: 'CCJ', name: 'Calicut International', city: 'Kozhikode',
@@ -124,6 +148,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'KSRTC Bus ₹20 · Cab ₹400–600 · Auto ₹300–450',
     wifi: 'Free Wi-Fi',
     helpline: '0483-271-6101',
+    food: 'Paragon Restaurant (Malabar cuisine), Café Coffee Day, KFC, Snack counters · Prices ₹60–300',
+    facilities: 'Prayer room (large mosque nearby) · Medical center · ATMs · Currency exchange · Baby care',
   },
   {
     code: 'CNN', name: 'Kannur International', city: 'Kannur',
@@ -132,6 +158,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'KSRTC Bus ₹50 · Cab ₹400–700',
     wifi: 'Free Wi-Fi',
     helpline: '0497-286-8600',
+    food: 'Local Kerala snacks, Café Coffee Day, Juice bar · Prices ₹50–200',
+    facilities: 'Prayer room · Medical post · ATMs · Baby care · Currency exchange counter',
   },
   {
     code: 'ATQ', name: 'Sri Guru Ram Dass Jee International', city: 'Amritsar',
@@ -140,6 +168,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹200–400 · Auto ₹100–200 · Bus ₹30',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0183-259-2596',
+    food: 'Punjabi Dhaba (dhabha-style), KFC, Café Coffee Day, Bikanervala · Prices ₹80–300',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Baby care · Duty-free',
   },
   {
     code: 'IXC', name: 'Chandigarh International', city: 'Chandigarh',
@@ -148,6 +178,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹200–350 · PRTC Bus ₹30 · Auto ₹150',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0172-500-6101',
+    food: 'Pal Dhaba, Café Coffee Day, KFC, Snack counters · Prices ₹80–300',
+    facilities: 'Medical center · Prayer room · ATMs · Currency exchange · Baby care · Smoking zone',
   },
   {
     code: 'SXR', name: 'Sheikh ul Alam Airport', city: 'Srinagar',
@@ -156,6 +188,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹300–500 · Auto ₹200 · No public bus service',
     wifi: 'Free Wi-Fi',
     helpline: '0194-240-3354',
+    food: 'Kashmiri Wazwan counter, Café, Snack bar · Prices ₹60–250 · Wazwan dishes ₹150–300',
+    facilities: 'Prayer room · Medical post · ATMs · Currency exchange · Warm waiting areas (cold climate)',
   },
   // ─── Domestic International ───────────────────────────────────────────────
   {
@@ -165,6 +199,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'PMPML Bus ₹30 · Cab ₹200–400 · Auto ₹150–250',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '020-2691-4510',
+    food: 'Vohuman Café, Café Coffee Day, Subway, McDonald\'s, Juice Up · Prices ₹80–350',
+    facilities: 'Medical center · Prayer room · ATMs · Currency exchange · Baby care · Duty-free · Smoking zone',
   },
   {
     code: 'JAI', name: 'Jaipur International', city: 'Jaipur',
@@ -173,6 +209,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹200–350 · RSRTC Bus ₹40 · Auto ₹150',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0141-255-0623',
+    food: 'Chokhi Dhani Express (Rajasthani), KFC, Café Coffee Day, Bikanervala · Prices ₹80–350',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Baby care · Duty-free · Smoking zone',
   },
   {
     code: 'LKO', name: 'Chaudhary Charan Singh International', city: 'Lucknow',
@@ -181,6 +219,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'UPSRTC Bus ₹50 · Cab ₹300–500 · Auto ₹200',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0522-243-9009',
+    food: 'Tunday Kababi, Café Coffee Day, KFC, Bikanervala, Dominos · Prices ₹80–350',
+    facilities: 'Prayer room · Medical center · ATMs · Currency exchange · Baby care · Duty-free',
   },
   {
     code: 'NAG', name: 'Dr Babasaheb Ambedkar International', city: 'Nagpur',
@@ -189,6 +229,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹150–300 · City Bus ₹30 · Auto ₹100',
     wifi: 'Free Wi-Fi',
     helpline: '0712-266-5151',
+    food: 'Haldiram\'s, Café Coffee Day, KFC, Vilas Ladoo counter, Snack bars · Prices ₹60–300',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'VNS', name: 'Lal Bahadur Shastri Airport', city: 'Varanasi',
@@ -197,6 +239,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹300–500 · UP Bus ₹40 · Auto ₹200',
     wifi: 'Free Wi-Fi',
     helpline: '0542-262-2665',
+    food: 'Baati Chokha restaurant (Banarasi), Café Coffee Day, Snack counters · Prices ₹60–250',
+    facilities: 'Prayer room (temple motifs) · Medical post · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'PAT', name: 'Jay Prakash Narayan Airport', city: 'Patna',
@@ -205,6 +249,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹200–350 · BSRTC Bus ₹30 · Auto ₹150',
     wifi: 'Free Wi-Fi',
     helpline: '0612-222-9950',
+    food: 'Litti Chokha counter, Café Coffee Day, Snack bar · Prices ₹50–200',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care',
   },
   {
     code: 'GAU', name: 'Lokpriya Gopinath Bordoloi International', city: 'Guwahati',
@@ -213,6 +259,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'ASTC Bus ₹50 · Cab ₹400–700 · Auto ₹300',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0361-284-0150',
+    food: 'Khorikaa (Assamese cuisine), Café Coffee Day, KFC, Snack counters · Prices ₹70–300',
+    facilities: 'Medical center · Prayer room · ATMs · Currency exchange · Baby care · Duty-free · Smoking zone',
   },
   {
     code: 'BBI', name: 'Biju Patnaik International', city: 'Bhubaneswar',
@@ -221,6 +269,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'OSRTC Bus ₹40 · Cab ₹250–450 · Auto ₹150',
     wifi: 'Free 30 min Wi-Fi',
     helpline: '0674-253-6644',
+    food: 'Dalma (Odia cuisine), Café Coffee Day, KFC, Snack counters · Prices ₹60–300',
+    facilities: 'Medical center · Prayer room · ATMs · Baby care · Currency exchange · Smoking zone',
   },
   {
     code: 'VTZ', name: 'Visakhapatnam International', city: 'Visakhapatnam',
@@ -229,6 +279,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'APSRTC Bus ₹30 · Cab ₹300–550 · Auto ₹200',
     wifi: 'Free Wi-Fi',
     helpline: '0891-271-6272',
+    food: 'Andhra meals (spicy), Café Coffee Day, KFC, Juice bar · Prices ₹60–280',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'CJB', name: 'Coimbatore International', city: 'Coimbatore',
@@ -237,6 +289,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'TNSTC Bus ₹20 · Cab ₹200–350 · Auto ₹150',
     wifi: 'Free Wi-Fi',
     helpline: '0422-257-2933',
+    food: 'Annapoorna (South Indian), Café Coffee Day, KFC, Juice Planet · Prices ₹60–250',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'TRZ', name: 'Tiruchirappalli International', city: 'Tiruchirappalli',
@@ -245,6 +299,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'TNSTC Bus ₹15 · Cab ₹200–350 · Auto ₹100',
     wifi: 'Free Wi-Fi',
     helpline: '0431-234-0551',
+    food: 'Sree Krishna Bhavan (Tamil meals), Café, Snack bar · Prices ₹50–200',
+    facilities: 'Prayer room · Medical post · ATMs · Baby care',
   },
   {
     code: 'IXE', name: 'Mangaluru International', city: 'Mangaluru',
@@ -253,6 +309,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'KSRTC Bus ₹50 · Cab ₹400–700 · Auto ₹300',
     wifi: 'Free Wi-Fi',
     helpline: '0824-225-2591',
+    food: 'Mitra Samaj (Mangalorean cuisine), Café Coffee Day, KFC, Snack counters · Prices ₹60–280',
+    facilities: 'Prayer room · Medical post · ATMs · Currency exchange · Baby care',
   },
   {
     code: 'IXB', name: 'Bagdogra Airport', city: 'Siliguri',
@@ -261,6 +319,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹400–700 · Shared jeep ₹100 to Siliguri · No direct bus',
     wifi: 'Free Wi-Fi',
     helpline: '0353-259-3010',
+    food: 'Siliguri Momo Corner, Café, Snack bar · Prices ₹50–200 · Momos ₹60–100',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care',
   },
   {
     code: 'IXR', name: 'Birsa Munda Airport', city: 'Ranchi',
@@ -269,6 +329,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'JSRTC Bus ₹40 · Cab ₹250–450 · Auto ₹150',
     wifi: 'Free Wi-Fi',
     helpline: '0651-245-2284',
+    food: 'Jharkhand Tribal Food counter, Café Coffee Day, KFC, Snack bar · Prices ₹60–280',
+    facilities: 'Medical center · Prayer room · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'IXL', name: 'Kushok Bakula Rimpochee Airport', city: 'Leh',
@@ -277,6 +339,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹300–500 · Shared taxi ₹100–200 · No bus',
     wifi: 'Limited Wi-Fi',
     helpline: '01982-252-226',
+    food: 'Tibetan Kitchen (thukpa & momos), Basic café · Prices ₹80–250 · Altitude sickness: stay hydrated',
+    facilities: 'Medical post (oxygen available) · Prayer flags area · ATMs (limited) · Altitude advisory board',
   },
   {
     code: 'BHO', name: 'Raja Bhoj Airport', city: 'Bhopal',
@@ -285,6 +349,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'MPSRTC Bus ₹40 · Cab ₹200–400 · Auto ₹150',
     wifi: 'Free Wi-Fi',
     helpline: '0755-267-7003',
+    food: 'Manohar Dairy (peda & namkeen), Café Coffee Day, KFC, Snack counters · Prices ₹60–280',
+    facilities: 'Medical center · Prayer room · ATMs · Baby care · Currency exchange',
   },
   {
     code: 'UDR', name: 'Maharana Pratap Airport', city: 'Udaipur',
@@ -293,6 +359,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹250–450 · Auto ₹150 · No airport bus',
     wifi: 'Free Wi-Fi',
     helpline: '0294-265-5453',
+    food: 'Natraj Dining (Rajasthani), Café, Snack bar · Prices ₹60–250',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care',
   },
   {
     code: 'DED', name: 'Jolly Grant Airport', city: 'Dehradun',
@@ -301,6 +369,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'Cab ₹400–700 (to Dehradun) · Shared taxi ₹150 · No bus service',
     wifi: 'Free Wi-Fi',
     helpline: '0135-265-1103',
+    food: 'Pahadi Dhaba (local Garhwali), Café, Snack bar · Prices ₹60–250 · Haridwar halwai sweets available',
+    facilities: 'Medical post · Prayer room · ATMs · Baby care',
   },
   {
     code: 'IXM', name: 'Madurai Airport', city: 'Madurai',
@@ -309,6 +379,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'TNSTC Bus ₹20 · Cab ₹200–350 · Auto ₹150',
     wifi: 'Free Wi-Fi',
     helpline: '0452-269-0433',
+    food: 'Meenakshi Bhavan (Tamil meals), Café Coffee Day, KFC, Juice bar · Prices ₹60–250',
+    facilities: 'Medical post · Prayer room (near Meenakshi Temple city) · ATMs · Baby care',
   },
   {
     code: 'TIR', name: 'Tirupati Airport', city: 'Tirupati',
@@ -317,6 +389,8 @@ const AIRPORTS: AirportInfo[] = [
     transport: 'APSRTC Bus ₹30 · Cab ₹200–350 · Auto ₹100',
     wifi: 'Free Wi-Fi',
     helpline: '0877-228-8301',
+    food: 'TTD Laddu counter (official prasadam), Café Coffee Day, South Indian snacks · Prices ₹30–250',
+    facilities: 'Prayer room (Venkateshwara shrine inside terminal) · Medical post · ATMs · Baby care · Tonsuring facility nearby',
   },
 ];
 
@@ -432,17 +506,26 @@ export function AirportGuideScreen() {
               {/* Expandable content */}
               {isExpanded && (
                 <View style={[styles.expandCard, { backgroundColor: c.card, borderColor: c.primary }]}>
-                  <InfoRow emoji="🏛️" label="Terminals" value={airport.terminals} textColor={c.text} subColor={c.textSecondary} />
-                  <InfoRow emoji="🛋️" label="Lounges" value={airport.lounges} textColor={c.text} subColor={c.textSecondary} />
-                  <InfoRow emoji="🚗" label="Transport" value={airport.transport} textColor={c.text} subColor={c.textSecondary} />
-                  <InfoRow emoji="📶" label="Wi-Fi" value={airport.wifi} textColor={c.text} subColor={c.textSecondary} />
-                  <InfoRow emoji="📞" label="Helpline" value={airport.helpline} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🏛️" label="Terminals"  value={airport.terminals}  textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🛋️" label="Lounges"    value={airport.lounges}    textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🍽️" label="Food & Dining" value={airport.food}    textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🏥" label="Facilities" value={airport.facilities} textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="🚗" label="Transport"  value={airport.transport}  textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="📶" label="Wi-Fi"      value={airport.wifi}       textColor={c.text} subColor={c.textSecondary} />
+                  <InfoRow emoji="📞" label="Helpline"   value={airport.helpline}   textColor={c.text} subColor={c.textSecondary} last />
                 </View>
               )}
             </View>
           );
         })}
-      </ScrollView>
+  
+      {/* ── Banner Ad (free users) ───────────────────────── */}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+        </View>
+      )}
+    </ScrollView>
 
       {/* ── Rewarded Ad Bottom Sheet ──────────────────────────────────────── */}
       <Modal
@@ -476,11 +559,11 @@ export function AirportGuideScreen() {
   );
 }
 
-function InfoRow({ emoji, label, value, textColor, subColor }: {
-  emoji: string; label: string; value: string; textColor: string; subColor: string;
+function InfoRow({ emoji, label, value, textColor, subColor, last }: {
+  emoji: string; label: string; value: string; textColor: string; subColor: string; last?: boolean;
 }) {
   return (
-    <View style={styles.infoRow}>
+    <View style={[styles.infoRow, last && { marginBottom: 0 }]}>
       <Text style={styles.infoEmoji}>{emoji}</Text>
       <View style={styles.infoContent}>
         <Text style={[styles.infoLabel, { color: subColor }]}>{label}</Text>

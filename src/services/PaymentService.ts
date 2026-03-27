@@ -1,10 +1,11 @@
 /**
  * PaymentService — Razorpay premium subscription wrapper
  *
- * Handles checkout flow for:
- *  - ₹99/month
- *  - ₹499/year
- *  - ₹4,999 lifetime
+ * Plans:
+ *  - Trip Pass  ₹49  / 7 days   (perfect for a single trip)
+ *  - Lifetime   ₹2,999 one-time  (forever)
+ *
+ * Free trial (3 days) is handled separately via UserService — no payment needed.
  *
  * After successful payment, updates Firestore user doc via UserService
  * so isPremiumActive() returns true across all devices.
@@ -13,7 +14,7 @@ import { Alert } from 'react-native';
 import { RAZORPAY_KEY_ID } from '../config/env';
 import { updateUser } from './UserService';
 
-export type PremiumPlan = 'monthly' | 'yearly' | 'lifetime';
+export type PremiumPlan = 'trip' | 'lifetime';
 
 export const PLAN_DETAILS: Record<PremiumPlan, {
   label: string;
@@ -24,31 +25,22 @@ export const PLAN_DETAILS: Record<PremiumPlan, {
   badge: string;
   durationDays: number | null; // null = lifetime
 }> = {
-  monthly: {
-    label: '1 Month',
-    labelHi: '1 महीना',
-    price: 9900,
-    displayPrice: '₹99 / month',
-    displayPriceHi: '₹99 / महीना',
-    badge: '',
-    durationDays: 30,
-  },
-  yearly: {
-    label: '1 Year',
-    labelHi: '1 साल',
-    price: 49900,
-    displayPrice: '₹499 / year',
-    displayPriceHi: '₹499 / साल',
-    badge: 'BEST VALUE',
-    durationDays: 365,
+  trip: {
+    label: 'Trip Pass',
+    labelHi: 'ट्रिप पास',
+    price: 4900,            // ₹49
+    displayPrice: '₹49 / 7 days',
+    displayPriceHi: '₹49 / 7 दिन',
+    badge: 'TRIP SPECIAL',
+    durationDays: 7,
   },
   lifetime: {
     label: 'Lifetime',
     labelHi: 'आजीवन',
-    price: 499900,
-    displayPrice: '₹4,999 one-time',
-    displayPriceHi: '₹4,999 एकबार',
-    badge: 'MOST POPULAR',
+    price: 299900,          // ₹2,999
+    displayPrice: '₹2,999 one-time',
+    displayPriceHi: '₹2,999 एकबार',
+    badge: 'BEST VALUE',
     durationDays: null,
   },
 };
@@ -66,12 +58,12 @@ export async function purchasePremium(
     const RazorpayCheckout = require('react-native-razorpay').default;
 
     const options = {
-      description: `FlyEasy Premium — ${planInfo.label}`,
+      description: `ReadyToFly Premium — ${planInfo.label}`,
       image: 'https://i.imgur.com/3g7nmJC.png',
       currency: 'INR',
       key: RAZORPAY_KEY_ID,
       amount: planInfo.price,
-      name: 'FlyEasy',
+      name: 'ReadyToFly',
       prefill: {
         contact: phone,
         email: '',
@@ -92,11 +84,11 @@ export async function purchasePremium(
         premiumExpiry: expiry,
       });
 
-      Alert.alert(
-        '🎉 Welcome to Premium!',
-        'Thank you for upgrading. You now have unlimited flight tracking, no ads, and access to all tools.',
-        [{ text: 'Awesome!' }],
-      );
+      const successMsg = plan === 'trip'
+        ? 'Your Trip Pass is active for 7 days. Enjoy ad-free flying!'
+        : 'You now have lifetime access to all ReadyToFly features. Thank you!';
+
+      Alert.alert('🎉 Welcome to Premium!', successMsg, [{ text: 'Let\'s fly!' }]);
       return true;
     }
     return false;

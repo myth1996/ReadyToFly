@@ -14,6 +14,9 @@ import Fuse from 'fuse.js';
 import { useNavigation } from '@react-navigation/native';
 import { useSettings } from '../context/SettingsContext';
 import { haptic } from '../services/HapticService';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { adService } from '../services/AdService';
+import { useAuth } from '../context/AuthContext';
 import {
   SEARCH_INDEX, SEARCH_BY_CATEGORY, CATEGORY_ORDER,
   SearchItem, SearchCategory,
@@ -90,6 +93,7 @@ function EmptyState({ query, themeColors }: { query: string; themeColors: any })
 export function SearchScreen() {
   const { themeColors: c, isDarkMode } = useSettings();
   const navigation = useNavigation<any>();
+  const { isPremiumUser } = useAuth();
   const inputRef = useRef<TextInput>(null);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query.trim(), 120);
@@ -204,6 +208,11 @@ export function SearchScreen() {
           stickySectionHeadersEnabled={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         />
+      )}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+        </View>
       )}
     </View>
   );

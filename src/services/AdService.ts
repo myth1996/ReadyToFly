@@ -31,19 +31,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Swap TestIds for real unit IDs in the production build.
 // Format: ca-app-pub-<publisher>/<unit>
 
-export const AD_UNIT_IDS = {
-  APP_OPEN:     TestIds.APP_OPEN,
-  INTERSTITIAL: TestIds.INTERSTITIAL,
-  REWARDED:     TestIds.REWARDED,
-  NATIVE:       TestIds.NATIVE,      // Native content ad
-  BANNER:       TestIds.BANNER,      // Adaptive banner
+// DEBUG_TEST_ADS = true → use Google test ads (always fill, safe for development)
+// Set to false before submitting to Play Store.
+const DEBUG_TEST_ADS = true;
 
-  // ── Production IDs (fill before release) ──────────────────────────────────
-  // APP_OPEN:     'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // INTERSTITIAL: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // REWARDED:     'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // NATIVE:       'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // BANNER:       'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+export const AD_UNIT_IDS = {
+  APP_OPEN:     DEBUG_TEST_ADS ? TestIds.APP_OPEN     : 'ca-app-pub-9393363655749831/8480688149',
+  INTERSTITIAL: DEBUG_TEST_ADS ? TestIds.INTERSTITIAL : 'ca-app-pub-9393363655749831/1587170832',
+  REWARDED:     DEBUG_TEST_ADS ? TestIds.REWARDED     : 'ca-app-pub-9393363655749831/4527719438',
+  NATIVE:       TestIds.NATIVE,
+  BANNER:       DEBUG_TEST_ADS ? TestIds.BANNER       : 'ca-app-pub-9393363655749831/1539573950',
 };
 
 // ─── Test Device Registration ──────────────────────────────────────────────────
@@ -58,8 +55,9 @@ const KEY_APP_OPEN_LAST_SHOWN    = 'flyeasy_app_open_last_shown';
 const KEY_INTERSTITIAL_LAST_SHOWN = 'flyeasy_interstitial_last_shown';
 
 // ─── Cooldown Constants ────────────────────────────────────────────────────────
-const APP_OPEN_COOLDOWN_MS   = 24 * 60 * 60 * 1000; // 24 hours (once per day)
-const INTERSTITIAL_COOLDOWN_MS = 8 * 60 * 1000;     //  8 minutes
+const APP_OPEN_COOLDOWN_MS     = 24 * 60 * 60 * 1000; // 24 hours (once per day)
+// DEBUG: 0ms cooldown while DEBUG_TEST_ADS = true so every trigger fires during testing
+const INTERSTITIAL_COOLDOWN_MS = DEBUG_TEST_ADS ? 0 : 3 * 60 * 1000;
 
 // ─── AdService Class ───────────────────────────────────────────────────────────
 
@@ -230,6 +228,21 @@ class AdService {
       cleanup();
       onFailed?.();
     });
+  }
+
+  /**
+   * Generic interstitial show — 3-minute app-wide cooldown.
+   * Use on screen focus events, post-action moments, etc.
+   */
+  async showInterstitial(canShow: boolean): Promise<void> {
+    if (!canShow || !this.interstitialLoaded) { return; }
+    try {
+      const raw = await AsyncStorage.getItem(KEY_INTERSTITIAL_LAST_SHOWN);
+      const lastShown = raw ? parseInt(raw, 10) : 0;
+      if (Date.now() - lastShown < INTERSTITIAL_COOLDOWN_MS) { return; }
+      await AsyncStorage.setItem(KEY_INTERSTITIAL_LAST_SHOWN, String(Date.now()));
+      await this.interstitial.show();
+    } catch (_) {}
   }
 
   // ── Banner / Native helpers ────────────────────────────────────────────────

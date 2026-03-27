@@ -15,6 +15,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { adService } from '../services/AdService';
+import { useAuth } from '../context/AuthContext';
 import { useFlights } from '../context/FlightsContext';
 import { haptic } from '../services/HapticService';
 import {
@@ -129,6 +132,7 @@ const fcStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function MyFlightsScreen() {
   const { themeColors: c } = useSettings();
+  const { isPremiumUser } = useAuth();
   const { flights, addFlight, removeFlight, refreshAllFlights, isRefreshing } = useFlights();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -311,6 +315,13 @@ export function MyFlightsScreen() {
         )}
       </ScrollView>
 
+
+      {/* ── Banner Ad (free users) ───────────────────────── */}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+        </View>
+      )}
       <TouchableOpacity style={[styles.fab, { backgroundColor: c.primary }]} onPress={openModal}>
         <Text style={styles.fabText}>+ Add Flight</Text>
       </TouchableOpacity>

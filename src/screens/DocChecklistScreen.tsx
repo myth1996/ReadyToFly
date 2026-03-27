@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettings } from '../context/SettingsContext';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { adService } from '../services/AdService';
+import { useAuth } from '../context/AuthContext';
 import { domesticChecklist, internationalChecklist, ChecklistItem } from '../data/checklistItems';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -23,6 +26,7 @@ const STORAGE_KEY = 'flyeasy_checklist_';
 
 export function DocChecklistScreen() {
   const { themeColors: c, language } = useSettings();
+  const { isPremiumUser } = useAuth();
   const [isInternational, setIsInternational] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
@@ -68,7 +72,7 @@ export function DocChecklistScreen() {
       const label = language === 'hi' ? i.labelHi : i.label;
       return `${tick} ${label}`;
     });
-    const text = `✈️ ${title}\n${checkedCount}/${items.length} completed\n\n${lines.join('\n')}\n\n— Shared from FlyEasy`;
+    const text = `✈️ ${title}\n${checkedCount}/${items.length} completed\n\n${lines.join('\n')}\n\n— Shared from ReadyToFly`;
     try {
       await Share.share({ message: text });
     } catch (_) {}
@@ -126,48 +130,55 @@ export function DocChecklistScreen() {
       </Text>
 
       {/* Checklist Items */}
-      {items.map(item => {
+      {items.map((item, index) => {
         const isChecked = !!checked[item.id];
         const label = language === 'hi' ? item.labelHi : item.label;
+        const midPoint = Math.floor(items.length / 2);
         return (
-          <TouchableOpacity
-            key={item.id}
-            style={[
-              styles.itemCard,
-              { backgroundColor: c.card },
-              isChecked && styles.itemCardChecked,
-              isChecked && { borderColor: '#10B981' },
-            ]}
-            onPress={() => toggleItem(item.id)}
-            activeOpacity={0.7}>
-            <View style={[
-              styles.checkbox,
-              { borderColor: c.border },
-              isChecked && { backgroundColor: '#10B981', borderColor: '#10B981' },
-            ]}>
-              {isChecked && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <View style={styles.itemContent}>
-              <View style={styles.itemHeader}>
-                <Text
-                  style={[
-                    styles.itemLabel,
-                    { color: c.text },
-                    isChecked && styles.itemLabelChecked,
-                  ]}>
-                  {label}
-                </Text>
-                {item.required && (
-                  <View style={styles.requiredBadge}>
-                    <Text style={styles.requiredText}>Required</Text>
-                  </View>
-                )}
+          <React.Fragment key={item.id}>
+            <TouchableOpacity
+              style={[
+                styles.itemCard,
+                { backgroundColor: c.card },
+                isChecked && styles.itemCardChecked,
+                isChecked && { borderColor: '#10B981' },
+              ]}
+              onPress={() => toggleItem(item.id)}
+              activeOpacity={0.7}>
+              <View style={[
+                styles.checkbox,
+                { borderColor: c.border },
+                isChecked && { backgroundColor: '#10B981', borderColor: '#10B981' },
+              ]}>
+                {isChecked && <Text style={styles.checkmark}>✓</Text>}
               </View>
-              <Text style={[styles.itemDesc, { color: c.textSecondary }]}>
-                {item.description}
-              </Text>
-            </View>
-          </TouchableOpacity>
+              <View style={styles.itemContent}>
+                <View style={styles.itemHeader}>
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      { color: c.text },
+                      isChecked && styles.itemLabelChecked,
+                    ]}>
+                    {label}
+                  </Text>
+                  {item.required && (
+                    <View style={styles.requiredBadge}>
+                      <Text style={styles.requiredText}>Required</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.itemDesc, { color: c.textSecondary }]}>
+                  {item.description}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            {index === midPoint && !isPremiumUser && (
+              <View style={{ alignItems: 'center', paddingVertical: 10, marginVertical: 4 }}>
+                <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+              </View>
+            )}
+          </React.Fragment>
         );
       })}
 
@@ -195,6 +206,13 @@ export function DocChecklistScreen() {
           • Vistara: DigiYatra available at DEL, BLR, BOM, HYD, PNQ, VNS, KOL
         </Text>
       </View>
+
+      {/* ── Banner Ad (free users) ───────────────────────── */}
+      {!isPremiumUser && (
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <BannerAd unitId={adService.getBannerUnitId()} size={BannerAdSize.ADAPTIVE_BANNER} />
+        </View>
+      )}
     </ScrollView>
   );
 }
