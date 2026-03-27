@@ -1,17 +1,17 @@
 /**
- * CabService — Cab deep-link builder + affiliate click logging
+ * CabService — Fare comparison engine ported from Comparify/FirstPaisa
  *
- * Supports Uber, Ola, Rapido with GPS pickup.
- * All clicks logged to Firestore for future affiliate integration.
- * Airport coordinates are looked up from the AIRPORTS data.
+ * Uses haversine distance + linear per-km fare model for each platform.
+ * Supports Uber, Ola, Rapido, Namma Yatri with multiple ride types each.
+ * Deep links pre-fill pickup/drop coordinates in each app.
  */
 import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import Geolocation from 'react-native-geolocation-service';
 import { AIRPORTS } from '../data/airports';
 
-// Airport lat/lng for deep-link drop points
-const AIRPORT_COORDS: Record<string, { lat: number; lng: number }> = {
+// ─── Airport coordinates ──────────────────────────────────────────────────────
+export const AIRPORT_COORDS: Record<string, { lat: number; lng: number }> = {
   DEL: { lat: 28.5562, lng: 77.1000 },
   BOM: { lat: 19.0896, lng: 72.8656 },
   BLR: { lat: 13.1986, lng: 77.7066 },
@@ -29,50 +29,160 @@ const AIRPORT_COORDS: Record<string, { lat: number; lng: number }> = {
   SXR: { lat: 33.9871, lng: 74.7742 },
   BBI: { lat: 20.2444, lng: 85.8177 },
   NAG: { lat: 21.0922, lng: 79.0472 },
-  SIN: { lat: 1.3644, lng: 103.9915 },
+  TRV: { lat: 8.4821,  lng: 76.9201 },
+  VTZ: { lat: 17.7212, lng: 83.2245 },
+  IXE: { lat: 12.9613, lng: 74.8900 },
+  GAU: { lat: 26.1061, lng: 91.5859 },
+  RPR: { lat: 21.1804, lng: 81.7388 },
+  // International fallbacks
+  SIN: { lat: 1.3644,  lng: 103.9915 },
   DXB: { lat: 25.2532, lng: 55.3657 },
   LHR: { lat: 51.4700, lng: -0.4543 },
   BKK: { lat: 13.6811, lng: 100.7472 },
-  KUL: { lat: 2.7456, lng: 101.7072 },
+  KUL: { lat: 2.7456,  lng: 101.7072 },
   DOH: { lat: 25.2609, lng: 51.6138 },
   AUH: { lat: 24.4330, lng: 54.6511 },
 };
 
-export type CabProvider = 'uber' | 'ola' | 'rapido';
+// ─── Types ────────────────────────────────────────────────────────────────────
+export type CabProvider = 'uber' | 'ola' | 'rapido' | 'namma_yatri';
 export type CabDirection = 'to_airport' | 'from_airport';
 
 export interface CabOption {
   provider: CabProvider;
   label: string;
+  rideType: string;
   emoji: string;
   fareMin: number;
   fareMax: number;
   etaMin: number;
   etaMax: number;
   color: string;
+  deepLink: string;
+  webFallback: string;
 }
 
-// Static fare ranges per 15km (adjust as needed)
-const FARE_RANGES: Record<CabProvider, { min: number; max: number; etaMin: number; etaMax: number }> = {
-  uber:   { min: 260, max: 360, etaMin: 3, etaMax: 8 },
-  ola:    { min: 220, max: 320, etaMin: 4, etaMax: 10 },
-  rapido: { min: 180, max: 260, etaMin: 2, etaMax: 6 },
-};
+// ─── Haversine distance (km) — ported from Comparify/FirstPaisa ───────────────
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-export function getCabOptions(): CabOption[] {
-  return [
-    { provider: 'uber',   label: 'Uber',   emoji: '⚫', fareMin: FARE_RANGES.uber.min,   fareMax: FARE_RANGES.uber.max,   etaMin: FARE_RANGES.uber.etaMin,   etaMax: FARE_RANGES.uber.etaMax,   color: '#000000' },
-    { provider: 'ola',    label: 'Ola',    emoji: '🟢', fareMin: FARE_RANGES.ola.min,    fareMax: FARE_RANGES.ola.max,    etaMin: FARE_RANGES.ola.etaMin,    etaMax: FARE_RANGES.ola.etaMax,    color: '#3CBA58' },
-    { provider: 'rapido', label: 'Rapido', emoji: '🟡', fareMin: FARE_RANGES.rapido.min, fareMax: FARE_RANGES.rapido.max, etaMin: FARE_RANGES.rapido.etaMin, etaMax: FARE_RANGES.rapido.etaMax, color: '#FFD600' },
+// Road distance is ~1.3× straight-line for Indian cities
+const ROAD_FACTOR = 1.3;
+
+// ─── Per-platform fare models (from Comparify) ────────────────────────────────
+// Fare = baseFare + distanceKm * perKm, then ±variance for min/max
+
+const UBER_MODELS = [
+  { rideType: 'UberGo',    baseFare: 50,  perKm: 12, etaFactor: 2.5, fareVariance: [0.90, 1.15], etaOffset: 0 },
+  { rideType: 'Uber Auto', baseFare: 30,  perKm: 9,  etaFactor: 2.5, fareVariance: [0.90, 1.10], etaOffset: 2 },
+];
+
+const OLA_MODELS = [
+  { rideType: 'Mini',      baseFare: 45,  perKm: 11, etaFactor: 2.5, fareVariance: [0.90, 1.15], etaOffset: 0 },
+  { rideType: 'Auto',      baseFare: 30,  perKm: 8,  etaFactor: 2.5, fareVariance: [0.90, 1.10], etaOffset: 3 },
+  { rideType: 'Prime',     baseFare: 80,  perKm: 16, etaFactor: 2.2, fareVariance: [0.90, 1.10], etaOffset: -1 },
+];
+
+const RAPIDO_MODELS = [
+  { rideType: 'Bike',      baseFare: 25,  perKm: 8,  etaFactor: 2.0, fareVariance: [0.90, 1.10], etaOffset: 0 },
+  { rideType: 'Auto',      baseFare: 32,  perKm: 10, etaFactor: 2.2, fareVariance: [0.90, 1.10], etaOffset: 2 },
+];
+
+const NAMMA_MODELS = [
+  { rideType: 'Auto',      baseFare: 30,  perKm: 9,  etaFactor: 2.2, fareVariance: [0.90, 1.10], etaOffset: 0 },
+];
+
+// ─── Deep link builders ───────────────────────────────────────────────────────
+function uberDeepLink(pLat: number, pLng: number, dLat: number, dLng: number): string {
+  return `uber://?action=setPickup&pickup[latitude]=${pLat}&pickup[longitude]=${pLng}&dropoff[latitude]=${dLat}&dropoff[longitude]=${dLng}`;
+}
+function olaDeepLink(pLat: number, pLng: number, dLat: number, dLng: number): string {
+  return `olacabs://app/launch?lat=${pLat}&lng=${pLng}&drop_lat=${dLat}&drop_lng=${dLng}`;
+}
+function rapidoDeepLink(pLat: number, pLng: number, dLat: number, dLng: number): string {
+  return `in.rapido.app://booking?slat=${pLat}&slng=${pLng}&dlat=${dLat}&dlng=${dLng}`;
+}
+function nammaDeepLink(pLat: number, pLng: number, dLat: number, dLng: number): string {
+  return `yatri://open?src_lat=${pLat}&src_lng=${pLng}&dst_lat=${dLat}&dst_lng=${dLng}`;
+}
+
+// ─── Fare calculation ─────────────────────────────────────────────────────────
+export function getCabOptions(
+  userCoords: { lat: number; lng: number } | null,
+  airportIata: string,
+  direction: CabDirection,
+): CabOption[] {
+  const airport = AIRPORT_COORDS[airportIata] ?? { lat: 0, lng: 0 };
+  const user = userCoords ?? { lat: 0, lng: 0 };
+
+  const pLat = direction === 'to_airport' ? user.lat : airport.lat;
+  const pLng = direction === 'to_airport' ? user.lng : airport.lng;
+  const dLat = direction === 'to_airport' ? airport.lat : user.lat;
+  const dLng = direction === 'to_airport' ? airport.lng : user.lng;
+
+  // Straight-line km × road factor
+  const distKm = userCoords
+    ? haversineKm(pLat, pLng, dLat, dLng) * ROAD_FACTOR
+    : 20; // default fallback if no GPS
+
+  const build = (
+    provider: CabProvider,
+    emoji: string,
+    color: string,
+    models: typeof UBER_MODELS,
+    deepLinkFn: (pLat: number, pLng: number, dLat: number, dLng: number) => string,
+    webFallback: string,
+  ): CabOption[] =>
+    models.map(m => {
+      const fare = m.baseFare + distKm * m.perKm;
+      const eta = Math.max(2, Math.round(distKm * m.etaFactor) + m.etaOffset);
+      return {
+        provider,
+        label: provider.charAt(0).toUpperCase() + provider.slice(1).replace('_', ' '),
+        rideType: m.rideType,
+        emoji,
+        fareMin: Math.round(fare * m.fareVariance[0]),
+        fareMax: Math.round(fare * m.fareVariance[1]),
+        etaMin: Math.max(2, eta - 2),
+        etaMax: eta + 3,
+        color,
+        deepLink: deepLinkFn(pLat, pLng, dLat, dLng),
+        webFallback,
+      };
+    });
+
+  const options: CabOption[] = [
+    ...build('uber',        '⚫', '#000000', UBER_MODELS,   uberDeepLink,   'https://m.uber.com/ul/'),
+    ...build('ola',         '🟢', '#3CBA58', OLA_MODELS,    olaDeepLink,    'https://book.olacabs.com/'),
+    ...build('rapido',      '🟡', '#FFD600', RAPIDO_MODELS, rapidoDeepLink, 'https://rapido.bike/'),
+    ...build('namma_yatri', '🔵', '#1B6FE8', NAMMA_MODELS,  nammaDeepLink,  'https://nammayatri.in/'),
   ];
+
+  // Sort cheapest first
+  return options.sort((a, b) => a.fareMin - b.fareMin);
 }
 
+// ─── Location helpers ─────────────────────────────────────────────────────────
 export async function requestLocationPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') { return true; }
   try {
     const result = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      { title: 'Location Permission', message: 'ReadyToFly needs your location to pre-fill cab pickup.', buttonPositive: 'Allow', buttonNegative: 'Not Now' },
+      {
+        title: 'Location Permission',
+        message: 'ReadyToFly needs your location to calculate accurate cab fares.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Not Now',
+      },
     );
     return result === PermissionsAndroid.RESULTS.GRANTED;
   } catch {
@@ -90,63 +200,36 @@ export function getCurrentPosition(): Promise<{ lat: number; lng: number } | nul
   });
 }
 
-export async function openCab(
-  provider: CabProvider,
-  airportIata: string,
-  direction: CabDirection,
-  userCoords: { lat: number; lng: number } | null,
-): Promise<void> {
-  const airport = AIRPORT_COORDS[airportIata];
-  const airportName = AIRPORTS[airportIata]?.name ?? 'Airport';
-
-  const pickupLat  = direction === 'to_airport' ? (userCoords?.lat ?? 0) : (airport?.lat ?? 0);
-  const pickupLng  = direction === 'to_airport' ? (userCoords?.lng ?? 0) : (airport?.lng ?? 0);
-  const dropLat    = direction === 'to_airport' ? (airport?.lat ?? 0)   : (userCoords?.lat ?? 0);
-  const dropLng    = direction === 'to_airport' ? (airport?.lng ?? 0)   : (userCoords?.lng ?? 0);
-  const dropName   = direction === 'to_airport' ? airportName : 'Home';
-  const pickupName = direction === 'to_airport' ? 'Current Location' : airportName;
-
-  let deepLink: string;
-  let webFallback: string;
-
-  switch (provider) {
-    case 'uber':
-      deepLink    = `uber://?action=setPickup&pickup[latitude]=${pickupLat}&pickup[longitude]=${pickupLng}&pickup[nickname]=${encodeURIComponent(pickupName)}&dropoff[latitude]=${dropLat}&dropoff[longitude]=${dropLng}&dropoff[nickname]=${encodeURIComponent(dropName)}`;
-      webFallback = `https://m.uber.com/looking?drop[0][latitude]=${dropLat}&drop[0][longitude]=${dropLng}`;
-      break;
-    case 'ola':
-      deepLink    = `olacabs://app/launch?pick_lat=${pickupLat}&pick_lng=${pickupLng}&drop_lat=${dropLat}&drop_lng=${dropLng}&coupon_code=`;
-      webFallback = `https://book.olacabs.com/?serviceType=p2p&pickup_lat=${pickupLat}&pickup_lng=${pickupLng}&drop_lat=${dropLat}&drop_lng=${dropLng}`;
-      break;
-    case 'rapido':
-      deepLink    = `rapido://book?pickup_lat=${pickupLat}&pickup_lng=${pickupLng}&drop_lat=${dropLat}&drop_lng=${dropLng}`;
-      webFallback = 'https://rapido.bike/';
-      break;
-  }
-
+// ─── Book a cab (deep link → web fallback) ────────────────────────────────────
+export async function openCab(option: CabOption): Promise<void> {
   try {
-    const canOpen = await Linking.canOpenURL(deepLink);
-    await Linking.openURL(canOpen ? deepLink : webFallback);
+    const canOpen = await Linking.canOpenURL(option.deepLink);
+    await Linking.openURL(canOpen ? option.deepLink : option.webFallback);
   } catch {
-    await Linking.openURL(webFallback);
+    await Linking.openURL(option.webFallback);
   }
 }
 
+// ─── Firestore click logging ──────────────────────────────────────────────────
 export async function logCabClick(
   uid: string | null,
   provider: CabProvider,
+  rideType: string,
   direction: CabDirection,
   airportIata: string,
+  fareMin: number,
 ): Promise<void> {
   try {
     await firestore().collection('cab_clicks').add({
       uid: uid ?? 'anonymous',
       provider,
+      rideType,
       direction,
       airportIata,
+      fareMin,
       clickedAt: firestore.FieldValue.serverTimestamp(),
     });
   } catch {
-    // Non-fatal — click tracking should never break the booking flow
+    // Non-fatal
   }
 }

@@ -27,7 +27,7 @@ import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { adService } from '../services/AdService';
 import { AdGuard } from '../services/AdGuard';
 import { useFlightStatus } from '../hooks/useFlightStatus';
-import { getCabOptions, openCab, logCabClick, requestLocationPermission, getCurrentPosition, CabProvider } from '../services/CabService';
+import { getCabOptions, openCab, logCabClick, requestLocationPermission, getCurrentPosition } from '../services/CabService';
 import { fetchWeatherForAirport, WeatherResult } from '../services/WeatherService';
 import { getDestinationCurrency, formatConversion } from '../services/CurrencyService';
 import { AIRPORTS } from '../data/airports';
@@ -105,7 +105,7 @@ export function ArrivalScreen() {
 
   const [doneSteps, setDoneSteps]    = useState<number[]>([]);
   const [userCoords, setUserCoords]  = useState<{ lat: number; lng: number } | null>(null);
-  const [bookingProvider, setBooking] = useState<CabProvider | null>(null);
+  const [bookingProvider, setBooking] = useState<string | null>(null);
   const [weather, setWeather]        = useState<WeatherResult | null>(null);
   const [currency, setCurrency]      = useState<{ currencyCode: string; symbol: string; name: string; rate: number } | null>(null);
 
@@ -139,15 +139,16 @@ export function ArrivalScreen() {
     setDoneSteps(prev => prev.includes(stepId) ? prev : [...prev, stepId]);
   };
 
-  const cabOptions = getCabOptions();
-  const cheapest   = cabOptions.reduce((a, b) => a.fareMin < b.fareMin ? a : b);
+  const cabOptions = getCabOptions(userCoords, arrIata, 'from_airport');
+  const cheapest   = cabOptions[0]; // already sorted cheapest first
 
-  const handleCabBook = async (provider: CabProvider) => {
+  const handleCabBook = async () => {
+    if (!cheapest) { return; }
     haptic.impact();
-    setBooking(provider);
+    setBooking(cheapest.provider);
     try {
-      await logCabClick(user?.uid ?? null, provider, 'from_airport', arrIata);
-      await openCab(provider, arrIata, 'from_airport', userCoords);
+      await logCabClick(user?.uid ?? null, cheapest.provider, cheapest.rideType, 'from_airport', arrIata, cheapest.fareMin);
+      await openCab(cheapest);
     } catch {
       Alert.alert('Could not open app', 'Please install the cab app and try again.');
     } finally {
@@ -312,19 +313,20 @@ export function ArrivalScreen() {
         </Text>
 
         {cabOptions.map((opt) => {
-          const isCheapest  = opt.provider === cheapest.provider;
-          const isBookingNow = bookingProvider === opt.provider;
+          const isCheapest   = cheapest && opt.provider === cheapest.provider && opt.rideType === cheapest.rideType;
+          const key          = `${opt.provider}-${opt.rideType}`;
+          const isBookingNow = bookingProvider === key;
 
           return (
             <View
-              key={opt.provider}
+              key={key}
               style={[
                 styles.miniCabCard,
                 { backgroundColor: c.background, borderColor: isCheapest ? '#10B981' : c.border },
               ]}>
               <Text style={styles.miniCabEmoji}>{opt.emoji}</Text>
               <View style={styles.miniCabInfo}>
-                <Text style={[styles.miniCabName, { color: c.text }]}>{opt.label}</Text>
+                <Text style={[styles.miniCabName, { color: c.text }]}>{opt.label} {opt.rideType}</Text>
                 <Text style={[styles.miniCabFare, { color: c.textSecondary }]}>
                   ₹{opt.fareMin}–{opt.fareMax}  ·  {opt.etaMin}–{opt.etaMax} min
                 </Text>
@@ -336,7 +338,7 @@ export function ArrivalScreen() {
               )}
               <TouchableOpacity
                 style={[styles.miniBookBtn, { backgroundColor: c.primary }]}
-                onPress={() => handleCabBook(opt.provider)}
+                onPress={() => { setBooking(key); openCab(opt).catch(() => {}); }}
                 disabled={isBookingNow}>
                 {isBookingNow
                   ? <ActivityIndicator color="#fff" size="small" />
