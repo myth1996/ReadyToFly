@@ -82,7 +82,8 @@ export function ProfileScreen() {
 
   const go = (screen: string) => {
     haptic.selection();
-    navigation.navigate(screen);
+    // ProfileScreen is a top-level tab — HomeStack screens must be reached via nested nav
+    navigation.navigate('Home' as any, { screen } as any);
   };
 
   // Display identifier: phone number preferred, fall back to UID truncated
