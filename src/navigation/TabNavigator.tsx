@@ -5,6 +5,7 @@ import { HomeStack } from './HomeStack';
 import { AirportGuideScreen } from '../screens/AirportGuideScreen';
 import { MyFlightsScreen } from '../screens/MyFlightsScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { useSettings } from '../context/SettingsContext';
 
 const Tab = createBottomTabNavigator();
@@ -84,6 +85,16 @@ export function TabNavigator() {
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="🔔" focused={focused} />
           ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="👤" focused={focused} />
+          ),
+          headerTitle: '👤 My Account',
         }}
       />
     </Tab.Navigator>
