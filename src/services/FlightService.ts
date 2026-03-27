@@ -43,18 +43,29 @@ export interface FlightData {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Format ISO time string → "10:30 AM" */
+const IST = 'Asia/Kolkata';
+
+/** Format ISO time string → "10:30 AM" always in IST */
 export function formatISOTime(iso?: string): string {
   if (!iso) { return '--:--'; }
   try {
-    const date = new Date(iso);
-    const h = date.getHours();
-    const m = date.getMinutes().toString().padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    return `${((h % 12) || 12)}:${m} ${ampm}`;
+    return new Date(iso).toLocaleTimeString('en-IN', {
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: IST,
+    });
   } catch {
     return '--:--';
   }
+}
+
+/** Extract IST hours (24h) and minutes from an ISO string */
+export function istHoursMinutes(iso: string): { h: number; m: number } {
+  const parts = new Intl.DateTimeFormat('en-IN', {
+    hour: 'numeric', minute: 'numeric', hour12: false, timeZone: IST,
+  }).formatToParts(new Date(iso));
+  return {
+    h: parseInt(parts.find(p => p.type === 'hour')?.value  ?? '0', 10),
+    m: parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10),
+  };
 }
 
 /** Normalize user input to IATA flight code: "6e 204" → "6E204" */

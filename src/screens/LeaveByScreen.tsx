@@ -16,7 +16,7 @@ import { adService } from '../services/AdService';
 import { useAuth } from '../context/AuthContext';
 import { AdGuard } from '../services/AdGuard';
 import { useFlights } from '../context/FlightsContext';
-import { formatISOTime } from '../services/FlightService';
+import { formatISOTime, istHoursMinutes } from '../services/FlightService';
 import { notificationService } from '../services/NotificationService';
 import { airportMapsQuery } from '../data/airports';
 import { AirportSearchInput } from '../components/AirportSearchInput';
@@ -46,10 +46,9 @@ function pad(n: number) {
 }
 
 function formatTime(date: Date) {
-  const h = date.getHours();
-  const m = date.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${pad(h % 12 || 12)}:${pad(m)} ${ampm}`;
+  return date.toLocaleTimeString('en-IN', {
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+  });
 }
 
 function getCountdown(leaveBy: Date) {
@@ -96,9 +95,7 @@ export function LeaveByScreen() {
   // Pre-fill from next flight
   const handlePrefill = () => {
     if (!nextFlight) { return; }
-    const depDate = new Date(nextFlight.dep.scheduledTime);
-    const h24 = depDate.getHours();
-    const m = depDate.getMinutes();
+    const { h: h24, m } = istHoursMinutes(nextFlight.dep.scheduledTime);
     const am = h24 < 12;
 
     setFlightNum(nextFlight.flightIata);

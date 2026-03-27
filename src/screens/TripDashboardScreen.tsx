@@ -76,7 +76,7 @@ function MiniFlightCard({
   const depTime = formatISOTime(flight.dep.scheduledTime);
   const arrTime = formatISOTime(flight.arr.scheduledTime);
   const depDate = flight.dep.scheduledTime
-    ? new Date(flight.dep.scheduledTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    ? new Date(flight.dep.scheduledTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })
     : '—';
   const badgeColor = statusColor(flight.status);
 
@@ -281,7 +281,7 @@ export function TripDashboardScreen() {
     const depTime = formatISOTime(nextFlight.dep.scheduledTime);
     const arrTime = formatISOTime(nextFlight.arr.scheduledTime);
     const depDate = nextFlight.dep.scheduledTime
-      ? new Date(nextFlight.dep.scheduledTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      ? new Date(nextFlight.dep.scheduledTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
       : '';
     const lines = [
       `✈️ *${nextFlight.flightIata}* — ${depDate}`,
