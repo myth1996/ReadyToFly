@@ -33,7 +33,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // DEBUG_TEST_ADS = true → use Google test ads (always fill, safe for development)
 // Set to false before submitting to Play Store.
-const DEBUG_TEST_ADS = true;
+const DEBUG_TEST_ADS = false;
 
 export const AD_UNIT_IDS = {
   APP_OPEN:     DEBUG_TEST_ADS ? TestIds.APP_OPEN     : 'ca-app-pub-9393363655749831/8480688149',

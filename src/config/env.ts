@@ -38,5 +38,5 @@ export const FEATURES = {
    * DEBUG: Force free-user mode so all ad placements are visible.
    * Set to false before publishing to Play Store.
    */
-  DEBUG_FORCE_FREE_USER: true,
+  DEBUG_FORCE_FREE_USER: false,
 };
