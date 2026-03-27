@@ -7,7 +7,7 @@ import { FEATURES } from '../config/env';
 // ── IMPORTANT: Replace with your Web Client ID from Firebase Console
 // Firebase Console → Project Settings → General → Your apps → Web app → Client ID
 // (or Google Cloud Console → APIs & Credentials → OAuth 2.0 Client IDs → Web client)
-const WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com';
+const WEB_CLIENT_ID = '156341152291-color1cpvh0csos1qikljul282i6o4a4.apps.googleusercontent.com';
 
 GoogleSignin.configure({
   webClientId: WEB_CLIENT_ID,

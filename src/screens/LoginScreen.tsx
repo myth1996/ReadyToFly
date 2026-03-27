@@ -105,14 +105,21 @@ export function LoginScreen({ onOtpSent }: Props) {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Google Sign-In — disabled until OAuth client is configured */}
+          {/* Google Sign-In */}
           <TouchableOpacity
-            style={[styles.googleBtn, styles.btnDisabled]}
-            onPress={() => Alert.alert('Coming Soon', 'Google Sign-In will be available in the next update.')}
+            style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={loading || googleLoading}
             activeOpacity={0.85}
           >
-            <Text style={styles.googleG}>G</Text>
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
+            {googleLoading ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <>
+                <Text style={styles.googleG}>G</Text>
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
           <Text style={styles.googleNote}>
             Sign in with Gmail to auto-import your flight bookings
